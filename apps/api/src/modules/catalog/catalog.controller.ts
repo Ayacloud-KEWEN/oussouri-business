@@ -1,0 +1,99 @@
+import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import { Type } from "class-transformer";
+import {
+  ArrayNotEmpty, IsArray, IsIn, IsISO31661Alpha2, IsNumber, IsOptional, IsPositive, IsString,
+  MaxLength, Min, ValidateNested,
+} from "class-validator";
+import { CatalogService } from "./catalog.service";
+import { Public } from "../iam/jwt-auth.guard";
+import { CurrentUser, Roles } from "../iam/roles.guard";
+import type { JwtPayload } from "../iam/auth.types";
+
+class CreateProductDto {
+  @IsString() categoryCode!: string;
+  @IsOptional() @IsString() speciesCode?: string;
+  @IsOptional() @IsString() gradeCode?: string;
+  @IsString() @MaxLength(20) hsCode!: string;
+  @IsISO31661Alpha2() originCountry!: string;
+  @IsString() @MaxLength(200) name!: string;
+  @IsOptional() @IsString() @MaxLength(5000) description?: string;
+  @IsOptional() @IsIn(["zh-CN", "en", "fr"]) sourceLocale?: string;
+}
+
+class PriceTierDto {
+  @IsIn(["EUR", "USD", "CNY", "GBP", "JPY"]) currency!: string;
+  @IsNumber() @Min(0) qtyMin!: number;
+  @IsOptional() @IsNumber() @IsPositive() qtyMax?: number;
+  @IsNumber() @IsPositive() unitPrice!: number;
+}
+
+class CreateSkuDto {
+  @IsString() @MaxLength(50) packSpec!: string;
+  @IsNumber() @IsPositive() netWeightKg!: number;
+  @IsString() @MaxLength(10) unit!: string;
+  @IsOptional() @IsNumber() @IsPositive() moq?: number;
+  @IsOptional() @IsNumber() @IsPositive() shelfLifeDays?: number;
+  @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => PriceTierDto) priceTiers!: PriceTierDto[];
+}
+
+class ReviewDto {
+  @IsIn(["APPROVE", "REJECT"]) decision!: "APPROVE" | "REJECT";
+  @IsOptional() @IsString() @MaxLength(500) reasons?: string;
+}
+
+@Controller()
+export class CatalogController {
+  constructor(private readonly catalog: CatalogService) {}
+
+  @Public()
+  @Get("products")
+  list(
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+    @Query("filter[category]") category?: string,
+    @Query("filter[species]") species?: string,
+    @Req() req?: { headers: Record<string, string | undefined> },
+  ) {
+    const authenticated = Boolean(req?.headers?.authorization);
+    return this.catalog.listPublic(
+      { category, species, page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
+      authenticated,
+    );
+  }
+
+  @Public()
+  @Get("products/:code")
+  get(@Param("code") code: string, @Req() req?: { headers: Record<string, string | undefined> }) {
+    return this.catalog.getPublic(code, Boolean(req?.headers?.authorization));
+  }
+
+  @Roles("SUPPLIER")
+  @Get("supplier/products")
+  mine(@CurrentUser() user: JwtPayload) {
+    return this.catalog.listSupplierProducts(user);
+  }
+
+  @Roles("SUPPLIER")
+  @Post("supplier/products")
+  create(@Body() dto: CreateProductDto, @CurrentUser() user: JwtPayload) {
+    return this.catalog.createProduct(dto, user);
+  }
+
+  @Roles("SUPPLIER")
+  @Post("supplier/products/:code/skus")
+  addSku(@Param("code") code: string, @Body() dto: CreateSkuDto, @CurrentUser() user: JwtPayload) {
+    return this.catalog.addSku(code, dto, user);
+  }
+
+  @Roles("SUPPLIER")
+  @Post("supplier/products/:code/submit")
+  submit(@Param("code") code: string, @CurrentUser() user: JwtPayload) {
+    return this.catalog.submitForReview(code, user);
+  }
+
+  @Roles("ADMIN", "QUALITY_INSPECTOR")
+  @Post("admin/products/:code/review")
+  review(@Param("code") code: string, @Body() dto: ReviewDto, @CurrentUser() user: JwtPayload) {
+    return this.catalog.review(code, dto.decision, user, dto.reasons);
+  }
+}
