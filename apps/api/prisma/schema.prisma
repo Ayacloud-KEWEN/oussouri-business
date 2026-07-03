@@ -1,0 +1,2012 @@
+// OUSSOURI AI — 全量数据库 Schema（Step 4 设计的展开实现）
+// 约定：
+// - 跨限界上下文引用一律为无约束 UUID 列（模块解耦，不建 FK）；同聚合内使用 @relation。
+// - 加密列 xxxEnc(Bytes) + 盲索引 xxxBidx；所有唯一索引在 migration 中改为部分索引 WHERE deleted_at IS NULL。
+// - pgvector 列与 HNSW/GIN/分区/CHECK 约束在 migration 手写 SQL 中补充。
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  schemas    = ["core", "audit", "analytics"]
+  extensions = [vector, pgcrypto]
+}
+
+// ============================================================
+// Kernel（平台内核）
+// ============================================================
+
+model CodeRule {
+  id         String    @id @default(uuid()) @db.Uuid
+  entityType String    @unique
+  prefix     String
+  pattern    String
+  seqLength  Int       @default(6)
+  jumpMax    Int       @default(7)
+  currentSeq BigInt    @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  createdBy  String?   @db.Uuid
+  updatedBy  String?   @db.Uuid
+  deletedAt  DateTime?
+  version    Int       @default(0)
+
+  @@map("code_rules")
+  @@schema("core")
+}
+
+enum VisibilityEffect {
+  ALLOW
+  MASK
+  DENY
+
+  @@schema("core")
+}
+
+model VisibilityPolicy {
+  id          String           @id @default(uuid()) @db.Uuid
+  resource    String
+  field       String
+  role        String
+  contextRule Json?
+  effect      VisibilityEffect
+  maskPattern String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  createdBy   String?          @db.Uuid
+  updatedBy   String?          @db.Uuid
+  deletedAt   DateTime?
+  version     Int              @default(0)
+
+  @@unique([resource, field, role])
+  @@map("visibility_policies")
+  @@schema("core")
+}
+
+model StateMachine {
+  id          String            @id @default(uuid()) @db.Uuid
+  code        String            @unique
+  states      Json
+  transitions StateTransition[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String?           @db.Uuid
+  updatedBy   String?           @db.Uuid
+  deletedAt   DateTime?
+  version     Int               @default(0)
+
+  @@map("state_machines")
+  @@schema("core")
+}
+
+model StateTransition {
+  id           String       @id @default(uuid()) @db.Uuid
+  machineCode  String
+  machine      StateMachine @relation(fields: [machineCode], references: [code])
+  fromState    String
+  toState      String
+  allowedRoles String[]
+  guard        Json?
+  emitsEvent   String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdBy    String?      @db.Uuid
+  updatedBy    String?      @db.Uuid
+  deletedAt    DateTime?
+  version      Int          @default(0)
+
+  @@unique([machineCode, fromState, toState])
+  @@map("state_transitions")
+  @@schema("core")
+}
+
+enum TranslationStatus {
+  MACHINE_DRAFT
+  REVIEWED
+
+  @@schema("core")
+}
+
+model EntityTranslation {
+  id         String            @id @default(uuid()) @db.Uuid
+  entityType String
+  entityId   String            @db.Uuid
+  field      String
+  locale     String
+  value      String
+  status     TranslationStatus @default(MACHINE_DRAFT)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  createdBy  String?           @db.Uuid
+  updatedBy  String?           @db.Uuid
+  deletedAt  DateTime?
+  version    Int               @default(0)
+
+  @@unique([entityType, entityId, field, locale])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@map("entity_translations")
+  @@schema("core")
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid()) @db.Uuid
+  base      String
+  quote     String
+  rate      Decimal  @db.Decimal(12, 6)
+  source    String
+  asOf      DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([base, quote, asOf])
+  @@map("exchange_rates")
+  @@schema("core")
+}
+
+model Country {
+  id           String    @id @default(uuid()) @db.Uuid
+  iso2         String    @unique
+  currencyCode String
+  vatRate      Decimal?  @db.Decimal(5, 2)
+  euMember     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  version      Int       @default(0)
+
+  @@map("countries")
+  @@schema("core")
+}
+
+model ConfigEntry {
+  id        String    @id @default(uuid()) @db.Uuid
+  namespace String
+  key       String
+  value     Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy String?   @db.Uuid
+  updatedBy String?   @db.Uuid
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@unique([namespace, key])
+  @@map("config_entries")
+  @@schema("core")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  aggregate   String
+  eventType   String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_events")
+  @@schema("core")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  actorRole  String?
+  action     String
+  targetType String?
+  targetId   String?  @db.Uuid
+  diff       Json?
+  reason     String?
+  ip         String?
+  userAgent  String?
+  occurredAt DateTime @default(now())
+
+  @@index([actorId, occurredAt])
+  @@index([targetType, targetId, occurredAt])
+  @@map("audit_logs")
+  @@schema("audit")
+}
+
+enum Sensitivity {
+  LOW
+  HIGH
+
+  @@schema("core")
+}
+
+enum EscalationStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+
+  @@schema("core")
+}
+
+model AccessEscalation {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @db.Uuid
+  targetType  String
+  targetId    String           @db.Uuid
+  fields      String[]
+  reason      String
+  sensitivity Sensitivity
+  status      EscalationStatus @default(PENDING)
+  approvedBy  String?          @db.Uuid
+  windowUntil DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  createdBy   String?          @db.Uuid
+  updatedBy   String?          @db.Uuid
+  deletedAt   DateTime?
+  version     Int              @default(0)
+
+  @@index([status, createdAt])
+  @@index([requesterId, createdAt])
+  @@map("access_escalations")
+  @@schema("core")
+}
+
+// ============================================================
+// IAM（身份与访问）
+// ============================================================
+
+enum UserStatus {
+  ACTIVE
+  LOCKED
+  DISABLED
+
+  @@schema("core")
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  emailEnc      Bytes
+  emailBidx     String     @unique
+  phoneEnc      Bytes?
+  phoneBidx     String?
+  passwordHash  String?
+  displayName   String
+  locale        String     @default("en")
+  totpSecretEnc Bytes?
+  status        UserStatus @default(ACTIVE)
+  lastLoginAt   DateTime?
+  roles         UserRole[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  createdBy     String?    @db.Uuid
+  updatedBy     String?    @db.Uuid
+  deletedAt     DateTime?
+  version       Int        @default(0)
+
+  @@index([phoneBidx])
+  @@map("users")
+  @@schema("core")
+}
+
+model OAuthAccount {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  provider    String
+  providerUid String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  version     Int       @default(0)
+
+  @@unique([provider, providerUid])
+  @@index([userId])
+  @@map("oauth_accounts")
+  @@schema("core")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  isInternal  Boolean          @default(false)
+  permissions RolePermission[]
+  users       UserRole[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+  version     Int              @default(0)
+
+  @@map("roles")
+  @@schema("core")
+}
+
+model Permission {
+  id        String           @id @default(uuid()) @db.Uuid
+  code      String           @unique
+  roles     RolePermission[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  deletedAt DateTime?
+  version   Int              @default(0)
+
+  @@map("permissions")
+  @@schema("core")
+}
+
+enum DataScope {
+  OWN
+  PARTY
+  ALL
+
+  @@schema("core")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid()) @db.Uuid
+  roleId       String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id])
+  permissionId String     @db.Uuid
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  dataScope    DataScope  @default(OWN)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+  version      Int        @default(0)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+  @@schema("core")
+}
+
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id])
+  roleId    String    @db.Uuid
+  role      Role      @relation(fields: [roleId], references: [id])
+  createdAt DateTime  @default(now())
+  createdBy String?   @db.Uuid
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+  @@schema("core")
+}
+
+model Session {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  refreshHash String    @unique
+  ip          String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+  @@schema("core")
+}
+
+// ============================================================
+// Party（交易主体）— 真实身份唯一存放地
+// ============================================================
+
+enum PartyType {
+  SUPPLIER
+  BUYER
+  BOTH
+
+  @@schema("core")
+}
+
+enum PartyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+
+  @@schema("core")
+}
+
+model Organization {
+  id                String           @id @default(uuid()) @db.Uuid
+  publicCode        String           @unique
+  partyType         PartyType
+  legalNameEnc      Bytes
+  legalNameBidx     String
+  registrationNoEnc Bytes?
+  taxIdEnc          Bytes?
+  legalRepEnc       Bytes?
+  addressEnc        Bytes?
+  countryIso2       String
+  status            PartyStatus      @default(PENDING)
+  approvedBy        String?          @db.Uuid
+  approvedAt        DateTime?
+  riskNotes         String?
+  contacts          Contact[]
+  certificates      PartyCertificate[]
+  addresses         Address[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  createdBy         String?          @db.Uuid
+  updatedBy         String?          @db.Uuid
+  deletedAt         DateTime?
+  version           Int              @default(0)
+
+  @@index([legalNameBidx])
+  @@index([partyType, status])
+  @@map("organizations")
+  @@schema("core")
+}
+
+model Membership {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  orgId     String    @db.Uuid
+  orgRole   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+  @@map("memberships")
+  @@schema("core")
+}
+
+model Contact {
+  id          String       @id @default(uuid()) @db.Uuid
+  orgId       String       @db.Uuid
+  org         Organization @relation(fields: [orgId], references: [id])
+  nameEnc     Bytes
+  positionEnc Bytes?
+  phoneEnc    Bytes?
+  emailEnc    Bytes?
+  imEnc       Bytes?
+  isPrimary   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   String?      @db.Uuid
+  updatedBy   String?      @db.Uuid
+  deletedAt   DateTime?
+  version     Int          @default(0)
+
+  @@index([orgId])
+  @@map("contacts")
+  @@schema("core")
+}
+
+model SupplierProfile {
+  id                String    @id @default(uuid()) @db.Uuid
+  orgId             String    @unique @db.Uuid
+  establishedAt     DateTime?
+  registeredCapital Decimal?  @db.Decimal(14, 2)
+  businessScope     String?
+  tier              String?
+  exportReady       Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+  version           Int       @default(0)
+
+  @@map("supplier_profiles")
+  @@schema("core")
+}
+
+enum BuyerType {
+  WHOLESALER
+  RETAILER
+  RESTAURANT
+  IMPORTER
+  DISTRIBUTOR
+
+  @@schema("core")
+}
+
+model BuyerProfile {
+  id             String    @id @default(uuid()) @db.Uuid
+  orgId          String    @unique @db.Uuid
+  buyerType      BuyerType
+  city           String?
+  creditScore    Decimal   @default(60) @db.Decimal(5, 1)
+  totalPurchases Decimal   @default(0) @db.Decimal(14, 2)
+  churnRiskAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  version        Int       @default(0)
+
+  @@map("buyer_profiles")
+  @@schema("core")
+}
+
+model Address {
+  id           String       @id @default(uuid()) @db.Uuid
+  orgId        String       @db.Uuid
+  org          Organization @relation(fields: [orgId], references: [id])
+  label        String
+  recipientEnc Bytes
+  phoneEnc     Bytes
+  line1Enc     Bytes
+  cityEnc      Bytes
+  postcode     String?
+  countryIso2  String
+  isDefault    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdBy    String?      @db.Uuid
+  updatedBy    String?      @db.Uuid
+  deletedAt    DateTime?
+  version      Int          @default(0)
+
+  @@index([orgId])
+  @@map("addresses")
+  @@schema("core")
+}
+
+enum CertStatus {
+  PENDING
+  VALID
+  EXPIRED
+  REJECTED
+
+  @@schema("core")
+}
+
+model PartyCertificate {
+  id         String       @id @default(uuid()) @db.Uuid
+  orgId      String       @db.Uuid
+  org        Organization @relation(fields: [orgId], references: [id])
+  certType   String
+  certNo     String
+  issuer     String?
+  issueDate  DateTime?
+  expiryDate DateTime?
+  fileKey    String?
+  status     CertStatus   @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  createdBy  String?      @db.Uuid
+  updatedBy  String?      @db.Uuid
+  deletedAt  DateTime?
+  version    Int          @default(0)
+
+  @@index([orgId, certType])
+  @@index([expiryDate])
+  @@map("party_certificates")
+  @@schema("core")
+}
+
+// ============================================================
+// Catalog（商品目录）
+// ============================================================
+
+model Category {
+  id               String    @id @default(uuid()) @db.Uuid
+  code             String    @unique
+  parentId         String?   @db.Uuid
+  industryTemplate String?
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        String?   @db.Uuid
+  updatedBy        String?   @db.Uuid
+  deletedAt        DateTime?
+  version          Int       @default(0)
+
+  @@map("categories")
+  @@schema("core")
+}
+
+model Species {
+  id            String    @id @default(uuid()) @db.Uuid
+  code          String    @unique
+  latinName     String
+  citesAppendix String?
+  fatherCode    String?
+  motherCode    String?
+  maturityYears String?
+  avgEggSizeMm  Decimal?  @db.Decimal(4, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  version       Int       @default(0)
+
+  @@map("species")
+  @@schema("core")
+}
+
+model Grade {
+  id           String    @id @default(uuid()) @db.Uuid
+  code         String    @unique
+  categoryCode String
+  criteria     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    String?   @db.Uuid
+  updatedBy    String?   @db.Uuid
+  deletedAt    DateTime?
+  version      Int       @default(0)
+
+  @@map("grades")
+  @@schema("core")
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+
+  @@schema("core")
+}
+
+model Product {
+  id              String        @id @default(uuid()) @db.Uuid
+  publicCode      String        @unique
+  supplierOrgId   String        @db.Uuid
+  categoryCode    String
+  speciesCode     String?
+  gradeCode       String?
+  hsCode          String
+  originCountry   String
+  originDetailEnc Bytes?
+  sourceLocale    String        @default("zh-CN")
+  name            String
+  description     String?
+  status          ProductStatus @default(DRAFT)
+  publishedAt     DateTime?
+  skus            ProductSku[]
+  media           ProductMedia[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdBy       String?       @db.Uuid
+  updatedBy       String?       @db.Uuid
+  deletedAt       DateTime?
+  version         Int           @default(0)
+
+  @@index([categoryCode, speciesCode, gradeCode, status])
+  @@index([supplierOrgId, status])
+  @@map("products")
+  @@schema("core")
+}
+
+enum SkuStatus {
+  ACTIVE
+  INACTIVE
+
+  @@schema("core")
+}
+
+model ProductSku {
+  id             String      @id @default(uuid()) @db.Uuid
+  productId      String      @db.Uuid
+  product        Product     @relation(fields: [productId], references: [id])
+  skuCode        String      @unique
+  packSpec       String
+  netWeightKg    Decimal     @db.Decimal(12, 3)
+  unit           String
+  moq            Decimal     @default(1) @db.Decimal(10, 2)
+  shelfLifeDays  Int?
+  storageTempMin Decimal?    @db.Decimal(4, 1)
+  storageTempMax Decimal?    @db.Decimal(4, 1)
+  status         SkuStatus   @default(ACTIVE)
+  priceTiers     PriceTier[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  createdBy      String?     @db.Uuid
+  updatedBy      String?     @db.Uuid
+  deletedAt      DateTime?
+  version        Int         @default(0)
+
+  @@index([productId])
+  @@map("product_skus")
+  @@schema("core")
+}
+
+model PriceTier {
+  id            String     @id @default(uuid()) @db.Uuid
+  skuId         String     @db.Uuid
+  sku           ProductSku @relation(fields: [skuId], references: [id])
+  currency      String
+  qtyMin        Decimal    @db.Decimal(10, 2)
+  qtyMax        Decimal?   @db.Decimal(10, 2)
+  unitPrice     Decimal    @db.Decimal(14, 2)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  createdBy     String?    @db.Uuid
+  updatedBy     String?    @db.Uuid
+  deletedAt     DateTime?
+  version       Int        @default(0)
+
+  @@index([skuId, currency, isActive])
+  @@map("price_tiers")
+  @@schema("core")
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  DOC
+
+  @@schema("core")
+}
+
+model ProductMedia {
+  id        String    @id @default(uuid()) @db.Uuid
+  productId String    @db.Uuid
+  product   Product   @relation(fields: [productId], references: [id])
+  kind      MediaKind
+  fileKey   String
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@index([productId])
+  @@map("product_media")
+  @@schema("core")
+}
+
+// ============================================================
+// Traceability（溯源，行业无关）
+// ============================================================
+
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+
+  @@schema("core")
+}
+
+model ProductionUnit {
+  id            String       @id @default(uuid()) @db.Uuid
+  supplierOrgId String       @db.Uuid
+  unitType      String
+  nameEnc       Bytes
+  locationEnc   Bytes
+  countryIso2   String
+  attributes    Json
+  status        ActiveStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  createdBy     String?      @db.Uuid
+  updatedBy     String?      @db.Uuid
+  deletedAt     DateTime?
+  version       Int          @default(0)
+
+  @@index([supplierOrgId])
+  @@map("production_units")
+  @@schema("core")
+}
+
+model ProductionSubunit {
+  id         String    @id @default(uuid()) @db.Uuid
+  unitId     String    @db.Uuid
+  name       String
+  attributes Json
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  createdBy  String?   @db.Uuid
+  updatedBy  String?   @db.Uuid
+  deletedAt  DateTime?
+  version    Int       @default(0)
+
+  @@index([unitId])
+  @@map("production_subunits")
+  @@schema("core")
+}
+
+enum SourceBatchStatus {
+  GROWING
+  HARVESTED
+  SOLD
+  CLOSED
+
+  @@schema("core")
+}
+
+model SourceBatch {
+  id          String            @id @default(uuid()) @db.Uuid
+  subunitId   String            @db.Uuid
+  batchNo     String
+  speciesCode String?
+  quantity    Int?
+  avgWeightKg Decimal?          @db.Decimal(8, 2)
+  ageMonths   Int?
+  originType  String?
+  rfidStart   String?
+  rfidEnd     String?
+  status      SourceBatchStatus @default(GROWING)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String?           @db.Uuid
+  updatedBy   String?           @db.Uuid
+  deletedAt   DateTime?
+  version     Int               @default(0)
+
+  @@unique([subunitId, batchNo])
+  @@map("source_batches")
+  @@schema("core")
+}
+
+model IndividualAsset {
+  id            String    @id @default(uuid()) @db.Uuid
+  sourceBatchId String    @db.Uuid
+  rfid          String    @unique
+  gender        String?
+  birthDate     DateTime?
+  weightKg      Decimal?  @db.Decimal(8, 2)
+  lengthCm      Decimal?  @db.Decimal(6, 2)
+  healthStatus  String    @default("HEALTHY")
+  status        String    @default("ALIVE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     String?   @db.Uuid
+  updatedBy     String?   @db.Uuid
+  deletedAt     DateTime?
+  version       Int       @default(0)
+
+  @@index([sourceBatchId])
+  @@map("individual_assets")
+  @@schema("core")
+}
+
+enum CareType {
+  FEEDING
+  HEALTH
+  MEDICATION
+  MORTALITY
+
+  @@schema("core")
+}
+
+model CareRecord {
+  id              String    @id @default(uuid()) @db.Uuid
+  sourceBatchId   String    @db.Uuid
+  recordType      CareType
+  recordDate      DateTime
+  payload         Json
+  withdrawalUntil DateTime?
+  operator        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       String?   @db.Uuid
+  updatedBy       String?   @db.Uuid
+  deletedAt       DateTime?
+  version         Int       @default(0)
+
+  @@index([sourceBatchId, recordType, recordDate])
+  @@map("care_records")
+  @@schema("core")
+}
+
+enum QcStatus {
+  IN_PROGRESS
+  COMPLETED
+  QC_PASS
+  QC_FAIL
+
+  @@schema("core")
+}
+
+model ProcessingBatch {
+  id             String           @id @default(uuid()) @db.Uuid
+  supplierOrgId  String           @db.Uuid
+  sourceBatchId  String?          @db.Uuid
+  batchNo        String
+  categoryCode   String
+  speciesCode    String?
+  rawWeightKg    Decimal          @db.Decimal(12, 3)
+  outputWeightKg Decimal          @db.Decimal(12, 3)
+  processedAt    DateTime
+  attributes     Json
+  qcStatus       QcStatus         @default(IN_PROGRESS)
+  steps          ProcessingStep[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  createdBy      String?          @db.Uuid
+  updatedBy      String?          @db.Uuid
+  deletedAt      DateTime?
+  version        Int              @default(0)
+
+  @@unique([supplierOrgId, batchNo])
+  @@map("processing_batches")
+  @@schema("core")
+}
+
+model ProcessingStep {
+  id                String          @id @default(uuid()) @db.Uuid
+  processingBatchId String          @db.Uuid
+  processingBatch   ProcessingBatch @relation(fields: [processingBatchId], references: [id])
+  stepCode          String
+  startAt           DateTime?
+  endAt             DateTime?
+  temperature       Decimal?        @db.Decimal(4, 1)
+  operator          String?
+  notes             String?
+  sortOrder         Int
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
+  version           Int             @default(0)
+
+  @@index([processingBatchId])
+  @@map("processing_steps")
+  @@schema("core")
+}
+
+// ============================================================
+// Inventory（库存）
+// ============================================================
+
+enum LotStatus {
+  AVAILABLE
+  ON_HOLD
+  EXPIRED
+  SOLD_OUT
+
+  @@schema("core")
+}
+
+model InventoryLot {
+  id                String    @id @default(uuid()) @db.Uuid
+  skuId             String    @db.Uuid
+  processingBatchId String?   @db.Uuid
+  lotNo             String
+  producedAt        DateTime
+  expiresAt         DateTime
+  warehouse         String?
+  storageTemp       Decimal?  @db.Decimal(4, 1)
+  qtyOnHand         Decimal   @default(0) @db.Decimal(12, 3)
+  qtyReserved       Decimal   @default(0) @db.Decimal(12, 3)
+  status            LotStatus @default(AVAILABLE)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdBy         String?   @db.Uuid
+  updatedBy         String?   @db.Uuid
+  deletedAt         DateTime?
+  version           Int       @default(0)
+
+  @@unique([skuId, lotNo])
+  @@index([expiresAt, status])
+  @@map("inventory_lots")
+  @@schema("core")
+}
+
+enum InvTxType {
+  INBOUND
+  RESERVE
+  RELEASE
+  OUTBOUND
+  ADJUST
+
+  @@schema("core")
+}
+
+model InventoryTransaction {
+  id        String    @id @default(uuid()) @db.Uuid
+  lotId     String    @db.Uuid
+  txType    InvTxType
+  qty       Decimal   @db.Decimal(12, 3)
+  refType   String?
+  refId     String?   @db.Uuid
+  createdAt DateTime  @default(now())
+  createdBy String?   @db.Uuid
+
+  @@index([lotId, createdAt])
+  @@map("inventory_transactions")
+  @@schema("core")
+}
+
+enum ReservationStatus {
+  HELD
+  CONSUMED
+  RELEASED
+  EXPIRED
+
+  @@schema("core")
+}
+
+model Reservation {
+  id        String            @id @default(uuid()) @db.Uuid
+  lotId     String            @db.Uuid
+  qty       Decimal           @db.Decimal(12, 3)
+  refType   String
+  refId     String            @db.Uuid
+  expiresAt DateTime?
+  status    ReservationStatus @default(HELD)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  createdBy String?           @db.Uuid
+  updatedBy String?           @db.Uuid
+  deletedAt DateTime?
+  version   Int               @default(0)
+
+  @@index([expiresAt, status])
+  @@index([refType, refId])
+  @@map("reservations")
+  @@schema("core")
+}
+
+// ============================================================
+// Trading（交易）
+// ============================================================
+
+model Cart {
+  id         String     @id @default(uuid()) @db.Uuid
+  buyerOrgId String     @unique @db.Uuid
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deletedAt  DateTime?
+  version    Int        @default(0)
+
+  @@map("carts")
+  @@schema("core")
+}
+
+model CartItem {
+  id        String    @id @default(uuid()) @db.Uuid
+  cartId    String    @db.Uuid
+  cart      Cart      @relation(fields: [cartId], references: [id])
+  skuId     String    @db.Uuid
+  qty       Decimal   @db.Decimal(10, 2)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@unique([cartId, skuId])
+  @@map("cart_items")
+  @@schema("core")
+}
+
+enum OrderType {
+  DIRECT
+  AUCTION
+  RFQ
+  FUTURES
+  BROKER
+
+  @@schema("core")
+}
+
+model TradeOrder {
+  id                String      @id @default(uuid()) @db.Uuid
+  publicCode        String      @unique
+  orderType         OrderType
+  buyerOrgId        String      @db.Uuid
+  supplierOrgId     String      @db.Uuid
+  brokerUserId      String?     @db.Uuid
+  currency          String
+  fxRateToEur       Decimal     @db.Decimal(12, 6)
+  itemsTotal        Decimal     @db.Decimal(14, 2)
+  commissionRate    Decimal     @db.Decimal(5, 4)
+  commissionAmount  Decimal     @db.Decimal(14, 2)
+  grandTotal        Decimal     @db.Decimal(14, 2)
+  status            String
+  shippingAddressId String?     @db.Uuid
+  incoterms         String?
+  disputeUntil      DateTime?
+  placedAt          DateTime?
+  completedAt       DateTime?
+  notes             String?
+  items             OrderItem[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  createdBy         String?     @db.Uuid
+  updatedBy         String?     @db.Uuid
+  deletedAt         DateTime?
+  version           Int         @default(0)
+
+  @@index([buyerOrgId, status])
+  @@index([supplierOrgId, status])
+  @@index([brokerUserId])
+  @@map("trade_orders")
+  @@schema("core")
+}
+
+model OrderItem {
+  id        String     @id @default(uuid()) @db.Uuid
+  orderId   String     @db.Uuid
+  order     TradeOrder @relation(fields: [orderId], references: [id])
+  skuId     String     @db.Uuid
+  lotId     String?    @db.Uuid
+  qty       Decimal    @db.Decimal(10, 2)
+  unitPrice Decimal    @db.Decimal(14, 2)
+  lineTotal Decimal    @db.Decimal(14, 2)
+  snapshot  Json
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  version   Int        @default(0)
+
+  @@index([orderId])
+  @@map("order_items")
+  @@schema("core")
+}
+
+enum RfqScope {
+  TARGETED
+  BROKERED
+
+  @@schema("core")
+}
+
+model Rfq {
+  id           String    @id @default(uuid()) @db.Uuid
+  publicCode   String    @unique
+  buyerOrgId   String    @db.Uuid
+  categoryCode String
+  speciesCode  String?
+  gradeCode    String?
+  packSpec     String?
+  qty          Decimal   @db.Decimal(10, 2)
+  targetPrice  Decimal?  @db.Decimal(14, 2)
+  currency     String    @default("EUR")
+  destCountry  String
+  deadline     DateTime
+  scope        RfqScope  @default(BROKERED)
+  status       String
+  quotes       Quote[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    String?   @db.Uuid
+  updatedBy    String?   @db.Uuid
+  deletedAt    DateTime?
+  version      Int       @default(0)
+
+  @@index([buyerOrgId, status])
+  @@map("rfqs")
+  @@schema("core")
+}
+
+model Quote {
+  id            String    @id @default(uuid()) @db.Uuid
+  rfqId         String    @db.Uuid
+  rfq           Rfq       @relation(fields: [rfqId], references: [id])
+  supplierOrgId String    @db.Uuid
+  round         Int       @default(1)
+  unitPrice     Decimal   @db.Decimal(14, 2)
+  moq           Decimal?  @db.Decimal(10, 2)
+  leadTimeDays  Int?
+  validUntil    DateTime
+  status        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     String?   @db.Uuid
+  updatedBy     String?   @db.Uuid
+  deletedAt     DateTime?
+  version       Int       @default(0)
+
+  @@unique([rfqId, supplierOrgId, round])
+  @@map("quotes")
+  @@schema("core")
+}
+
+enum AuctionType {
+  ENGLISH
+  DUTCH
+  SEALED
+
+  @@schema("core")
+}
+
+model Auction {
+  id            String               @id @default(uuid()) @db.Uuid
+  publicCode    String               @unique
+  skuId         String               @db.Uuid
+  lotId         String               @db.Uuid
+  supplierOrgId String               @db.Uuid
+  auctionType   AuctionType
+  qty           Decimal              @db.Decimal(10, 2)
+  startPrice    Decimal              @db.Decimal(14, 2)
+  reservePrice  Decimal?             @db.Decimal(14, 2)
+  bidIncrement  Decimal              @db.Decimal(14, 2)
+  depositAmount Decimal              @db.Decimal(14, 2)
+  startAt       DateTime
+  endAt         DateTime
+  antiSnipeMin  Int                  @default(5)
+  status        String
+  participants  AuctionParticipant[]
+  bids          AuctionBid[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  createdBy     String?              @db.Uuid
+  updatedBy     String?              @db.Uuid
+  deletedAt     DateTime?
+  version       Int                  @default(0)
+
+  @@index([status, startAt])
+  @@map("auctions")
+  @@schema("core")
+}
+
+model AuctionParticipant {
+  id               String   @id @default(uuid()) @db.Uuid
+  auctionId        String   @db.Uuid
+  auction          Auction  @relation(fields: [auctionId], references: [id])
+  buyerOrgId       String   @db.Uuid
+  paddleNo         String
+  depositPaymentId String?  @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+  version          Int      @default(0)
+
+  @@unique([auctionId, buyerOrgId])
+  @@unique([auctionId, paddleNo])
+  @@map("auction_participants")
+  @@schema("core")
+}
+
+model AuctionBid {
+  id             String   @id @default(uuid()) @db.Uuid
+  auctionId      String   @db.Uuid
+  auction        Auction  @relation(fields: [auctionId], references: [id])
+  participantId  String   @db.Uuid
+  amount         Decimal  @db.Decimal(14, 2)
+  isProxy        Boolean  @default(false)
+  maxProxyAmount Decimal? @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+
+  @@index([auctionId, amount])
+  @@map("auction_bids")
+  @@schema("core")
+}
+
+model FuturesContract {
+  id            String    @id @default(uuid()) @db.Uuid
+  publicCode    String    @unique
+  supplierOrgId String    @db.Uuid
+  skuId         String    @db.Uuid
+  estimatedQty  Decimal   @db.Decimal(10, 2)
+  lockedPrice   Decimal   @db.Decimal(14, 2)
+  currency      String
+  depositPct    Decimal   @db.Decimal(5, 2)
+  deliveryFrom  DateTime
+  deliveryTo    DateTime
+  status        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     String?   @db.Uuid
+  updatedBy     String?   @db.Uuid
+  deletedAt     DateTime?
+  version       Int       @default(0)
+
+  @@map("futures_contracts")
+  @@schema("core")
+}
+
+model FuturesSubscription {
+  id               String    @id @default(uuid()) @db.Uuid
+  contractId       String    @db.Uuid
+  buyerOrgId       String    @db.Uuid
+  qty              Decimal   @db.Decimal(10, 2)
+  depositPaymentId String?   @db.Uuid
+  confirmedQty     Decimal?  @db.Decimal(10, 2)
+  status           String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        String?   @db.Uuid
+  updatedBy        String?   @db.Uuid
+  deletedAt        DateTime?
+  version          Int       @default(0)
+
+  @@index([contractId])
+  @@map("futures_subscriptions")
+  @@schema("core")
+}
+
+model Dispute {
+  id            String    @id @default(uuid()) @db.Uuid
+  orderId       String    @db.Uuid
+  raisedByOrgId String    @db.Uuid
+  reasonCode    String
+  description   String
+  evidence      Json
+  status        String
+  resolution    Json?
+  resolvedBy    String?   @db.Uuid
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     String?   @db.Uuid
+  updatedBy     String?   @db.Uuid
+  deletedAt     DateTime?
+  version       Int       @default(0)
+
+  @@index([orderId])
+  @@index([status])
+  @@map("disputes")
+  @@schema("core")
+}
+
+// ============================================================
+// Settlement（资金）
+// ============================================================
+
+model StripeAccount {
+  id               String    @id @default(uuid()) @db.Uuid
+  orgId            String    @unique @db.Uuid
+  stripeAccountId  String    @unique
+  onboardingStatus String
+  defaultCurrency  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  version          Int       @default(0)
+
+  @@map("stripe_accounts")
+  @@schema("core")
+}
+
+enum PayMethod {
+  STRIPE_CARD
+  STRIPE_SEPA
+  WIRE_MANUAL
+
+  @@schema("core")
+}
+
+enum PayStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIAL_REFUND
+
+  @@schema("core")
+}
+
+model Payment {
+  id                    String    @id @default(uuid()) @db.Uuid
+  orderId               String?   @db.Uuid
+  refType               String
+  refId                 String    @db.Uuid
+  method                PayMethod
+  stripePaymentIntentId String?   @unique
+  amount                Decimal   @db.Decimal(14, 2)
+  currency              String
+  status                PayStatus @default(PENDING)
+  paidAt                DateTime?
+  wireProofKey          String?
+  reconciledBy          String?   @db.Uuid
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  createdBy             String?   @db.Uuid
+  updatedBy             String?   @db.Uuid
+  deletedAt             DateTime?
+  version               Int       @default(0)
+
+  @@index([refType, refId])
+  @@index([orderId])
+  @@map("payments")
+  @@schema("core")
+}
+
+model Transfer {
+  id               String    @id @default(uuid()) @db.Uuid
+  orderId          String    @db.Uuid
+  stripeTransferId String?   @unique
+  supplierOrgId    String    @db.Uuid
+  amount           Decimal   @db.Decimal(14, 2)
+  currency         String
+  status           String
+  triggeredBy      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        String?   @db.Uuid
+  updatedBy        String?   @db.Uuid
+  deletedAt        DateTime?
+  version          Int       @default(0)
+
+  @@index([orderId])
+  @@map("transfers")
+  @@schema("core")
+}
+
+model Refund {
+  id             String    @id @default(uuid()) @db.Uuid
+  paymentId      String    @db.Uuid
+  stripeRefundId String?   @unique
+  amount         Decimal   @db.Decimal(14, 2)
+  reasonCode     String
+  status         String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdBy      String?   @db.Uuid
+  updatedBy      String?   @db.Uuid
+  deletedAt      DateTime?
+  version        Int       @default(0)
+
+  @@index([paymentId])
+  @@map("refunds")
+  @@schema("core")
+}
+
+enum LedgerAccount {
+  BUYER_FUNDS_IN_TRANSIT
+  ESCROW_HELD
+  PLATFORM_COMMISSION
+  SUPPLIER_PAYABLE
+  REFUND_PAYABLE
+  STRIPE_FEES
+
+  @@schema("core")
+}
+
+enum EntryDirection {
+  DEBIT
+  CREDIT
+
+  @@schema("core")
+}
+
+model LedgerEntry {
+  id        String         @id @default(uuid()) @db.Uuid
+  journalId String         @db.Uuid
+  account   LedgerAccount
+  orgId     String?        @db.Uuid
+  orderId   String?        @db.Uuid
+  direction EntryDirection
+  amount    Decimal        @db.Decimal(14, 2)
+  currency  String
+  memo      String?
+  createdAt DateTime       @default(now())
+
+  @@index([orderId])
+  @@index([account, createdAt])
+  @@index([journalId])
+  @@map("ledger_entries")
+  @@schema("core")
+}
+
+model CommissionRule {
+  id            String     @id @default(uuid()) @db.Uuid
+  categoryCode  String?
+  orderType     OrderType?
+  supplierTier  String?
+  ratePct       Decimal    @db.Decimal(5, 4)
+  brokerFeePct  Decimal?   @db.Decimal(5, 4)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  priority      Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  createdBy     String?    @db.Uuid
+  updatedBy     String?    @db.Uuid
+  deletedAt     DateTime?
+  version       Int        @default(0)
+
+  @@map("commission_rules")
+  @@schema("core")
+}
+
+enum InvoiceKind {
+  PROFORMA
+  COMMERCIAL
+  PLATFORM_FEE
+
+  @@schema("core")
+}
+
+model Invoice {
+  id         String      @id @default(uuid()) @db.Uuid
+  publicCode String      @unique
+  orderId    String      @db.Uuid
+  kind       InvoiceKind
+  issuedTo   String
+  locale     String
+  amount     Decimal     @db.Decimal(14, 2)
+  currency   String
+  vatAmount  Decimal?    @db.Decimal(14, 2)
+  fileKey    String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  createdBy  String?     @db.Uuid
+  updatedBy  String?     @db.Uuid
+  deletedAt  DateTime?
+  version    Int         @default(0)
+
+  @@index([orderId])
+  @@map("invoices")
+  @@schema("core")
+}
+
+// ============================================================
+// Fulfillment（履约）
+// ============================================================
+
+model Shipment {
+  id            String        @id @default(uuid()) @db.Uuid
+  orderId       String        @db.Uuid
+  incoterms     String?
+  packages      Int?
+  grossWeightKg Decimal?      @db.Decimal(12, 3)
+  status        String
+  legs          ShipmentLeg[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdBy     String?       @db.Uuid
+  updatedBy     String?       @db.Uuid
+  deletedAt     DateTime?
+  version       Int           @default(0)
+
+  @@index([orderId])
+  @@map("shipments")
+  @@schema("core")
+}
+
+enum TransportMode {
+  AIR
+  SEA
+  ROAD
+  RAIL
+  COLD_CHAIN_LAST_MILE
+
+  @@schema("core")
+}
+
+model ShipmentLeg {
+  id         String        @id @default(uuid()) @db.Uuid
+  shipmentId String        @db.Uuid
+  shipment   Shipment      @relation(fields: [shipmentId], references: [id])
+  seq        Int
+  mode       TransportMode
+  carrier    String
+  waybillNo  String?
+  fromCode   String
+  toCode     String
+  departAt   DateTime?
+  arriveAt   DateTime?
+  status     String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
+  version    Int           @default(0)
+
+  @@unique([shipmentId, seq])
+  @@map("shipment_legs")
+  @@schema("core")
+}
+
+model TemperatureLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  shipmentId String   @db.Uuid
+  recordedAt DateTime
+  tempC      Decimal  @db.Decimal(5, 2)
+  source     String
+  breached   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([shipmentId, recordedAt])
+  @@map("temperature_logs")
+  @@schema("core")
+}
+
+enum CustomsDirection {
+  EXPORT
+  IMPORT
+
+  @@schema("core")
+}
+
+model CustomsDeclaration {
+  id               String           @id @default(uuid()) @db.Uuid
+  orderId          String           @db.Uuid
+  direction        CustomsDirection
+  declarationNo    String?
+  brokerName       String?
+  hsCode           String
+  declaredValue    Decimal          @db.Decimal(14, 2)
+  currency         String
+  dutyAmount       Decimal?         @db.Decimal(14, 2)
+  vatAmount        Decimal?         @db.Decimal(14, 2)
+  declaredAt       DateTime?
+  clearedAt        DateTime?
+  status           String
+  inspectionResult String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  createdBy        String?          @db.Uuid
+  updatedBy        String?          @db.Uuid
+  deletedAt        DateTime?
+  version          Int              @default(0)
+
+  @@unique([orderId, direction])
+  @@map("customs_declarations")
+  @@schema("core")
+}
+
+model CitesPermit {
+  id            String     @id @default(uuid()) @db.Uuid
+  supplierOrgId String     @db.Uuid
+  permitNo      String     @unique
+  speciesCode   String
+  quotaKg       Decimal    @db.Decimal(12, 3)
+  usedKg        Decimal    @default(0) @db.Decimal(12, 3)
+  issueDate     DateTime
+  expiryDate    DateTime
+  status        CertStatus @default(VALID)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  createdBy     String?    @db.Uuid
+  updatedBy     String?    @db.Uuid
+  deletedAt     DateTime?
+  version       Int        @default(0)
+
+  @@index([expiryDate])
+  @@index([supplierOrgId])
+  @@map("cites_permits")
+  @@schema("core")
+}
+
+model Document {
+  id           String       @id @default(uuid()) @db.Uuid
+  docType      String
+  docNo        String?
+  ownerOrgId   String?      @db.Uuid
+  refType      String?
+  refId        String?      @db.Uuid
+  issuer       String?
+  issueDate    DateTime?
+  expiryDate   DateTime?
+  fileKey      String
+  maskTemplate Json?
+  status       CertStatus   @default(VALID)
+  maskedCopies MaskedDocumentCopy[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  createdBy    String?      @db.Uuid
+  updatedBy    String?      @db.Uuid
+  deletedAt    DateTime?
+  version      Int          @default(0)
+
+  @@index([refType, refId])
+  @@index([ownerOrgId, docType])
+  @@map("documents")
+  @@schema("core")
+}
+
+model MaskedDocumentCopy {
+  id           String   @id @default(uuid()) @db.Uuid
+  documentId   String   @db.Uuid
+  document     Document @relation(fields: [documentId], references: [id])
+  trackingCode String   @unique
+  generatedBy  String   @db.Uuid
+  sentToOrgId  String   @db.Uuid
+  fileKey      String
+  sentAt       DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([documentId])
+  @@map("masked_document_copies")
+  @@schema("core")
+}
+
+model DocRequirementTemplate {
+  id               String    @id @default(uuid()) @db.Uuid
+  categoryCode     String
+  exportCountry    String
+  importCountry    String
+  requiredDocTypes String[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  createdBy        String?   @db.Uuid
+  updatedBy        String?   @db.Uuid
+  deletedAt        DateTime?
+  version          Int       @default(0)
+
+  @@unique([categoryCode, exportCountry, importCountry])
+  @@map("doc_requirement_templates")
+  @@schema("core")
+}
+
+// ============================================================
+// Brokerage（居间撮合）
+// ============================================================
+
+model BehaviorEvent {
+  id         BigInt   @id @default(autoincrement())
+  orgId      String?  @db.Uuid
+  userId     String?  @db.Uuid
+  eventType  String
+  payload    Json
+  occurredAt DateTime @default(now())
+
+  @@index([orgId, eventType, occurredAt])
+  @@map("behavior_events")
+  @@schema("analytics")
+}
+
+model DemandProfile {
+  id          String    @id @default(uuid()) @db.Uuid
+  buyerOrgId  String    @unique @db.Uuid
+  preferences Json
+  lastOrderAt DateTime?
+  computedAt  DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  version     Int       @default(0)
+
+  @@map("demand_profiles")
+  @@schema("core")
+}
+
+model Loi {
+  id         String    @id @default(uuid()) @db.Uuid
+  buyerOrgId String    @db.Uuid
+  content    Json
+  validUntil DateTime?
+  status     String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  createdBy  String?   @db.Uuid
+  updatedBy  String?   @db.Uuid
+  deletedAt  DateTime?
+  version    Int       @default(0)
+
+  @@index([buyerOrgId, status])
+  @@map("lois")
+  @@schema("core")
+}
+
+model Opportunity {
+  id               String                @id @default(uuid()) @db.Uuid
+  publicCode       String                @unique
+  buyerOrgId       String                @db.Uuid
+  supplierOrgId    String                @db.Uuid
+  lotId            String?               @db.Uuid
+  skuId            String?               @db.Uuid
+  sourceSignal     String
+  matchingScore    Decimal               @db.Decimal(5, 2)
+  opportunityScore Decimal               @db.Decimal(5, 2)
+  urgencyScore     Decimal               @db.Decimal(5, 2)
+  profitScore      Decimal               @db.Decimal(5, 2)
+  explanation      Json
+  assignedBrokerId String?               @db.Uuid
+  status           String
+  lostReason       String?
+  wonOrderId       String?               @db.Uuid
+  activities       OpportunityActivity[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  createdBy        String?               @db.Uuid
+  updatedBy        String?               @db.Uuid
+  deletedAt        DateTime?
+  version          Int                   @default(0)
+
+  @@index([status, urgencyScore])
+  @@index([assignedBrokerId, status])
+  @@map("opportunities")
+  @@schema("core")
+}
+
+model OpportunityActivity {
+  id            String      @id @default(uuid()) @db.Uuid
+  opportunityId String      @db.Uuid
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id])
+  activityType  String
+  payload       Json
+  createdAt     DateTime    @default(now())
+  createdBy     String?     @db.Uuid
+
+  @@index([opportunityId, createdAt])
+  @@map("opportunity_activities")
+  @@schema("core")
+}
+
+model CallLog {
+  id             String    @id @default(uuid()) @db.Uuid
+  brokerUserId   String    @db.Uuid
+  targetOrgId    String    @db.Uuid
+  opportunityId  String?   @db.Uuid
+  providerCallId String?
+  startedAt      DateTime?
+  durationSec    Int?
+  outcome        String?
+  recordingKey   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  version        Int       @default(0)
+
+  @@index([brokerUserId, createdAt])
+  @@map("call_logs")
+  @@schema("core")
+}
+
+// ============================================================
+// Communication（IM 与通知）
+// ============================================================
+
+model Conversation {
+  id           String                    @id @default(uuid()) @db.Uuid
+  topicType    String
+  topicId      String?                   @db.Uuid
+  status       String                    @default("ACTIVE")
+  participants ConversationParticipant[]
+  messages     Message[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  createdBy    String?                   @db.Uuid
+  updatedBy    String?                   @db.Uuid
+  deletedAt    DateTime?
+  version      Int                       @default(0)
+
+  @@index([topicType, topicId])
+  @@map("conversations")
+  @@schema("core")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  orgId          String?      @db.Uuid
+  userId         String       @db.Uuid
+  partRole       String
+  createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
+  version        Int          @default(0)
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+  @@schema("core")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderUserId   String       @db.Uuid
+  body           String
+  attachments    Json?
+  translatedBody Json?
+  readBy         Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  version        Int          @default(0)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+  @@schema("core")
+}
+
+model MessageBlockEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  conversationId String?  @db.Uuid
+  matchedRule    String
+  rawExcerpt     String
+  occurredAt     DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@map("message_block_events")
+  @@schema("audit")
+}
+
+model NotificationTemplate {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique
+  channels  String[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy String?   @db.Uuid
+  updatedBy String?   @db.Uuid
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@map("notification_templates")
+  @@schema("core")
+}
+
+model Notification {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  templateCode String
+  channel      String
+  payload      Json
+  status       String    @default("PENDING")
+  sentAt       DateTime?
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  version      Int       @default(0)
+
+  @@index([userId, status])
+  @@map("notifications")
+  @@schema("core")
+}
+
+model NotificationPreference {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  templateCode String
+  channel      String
+  enabled      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  version      Int       @default(0)
+
+  @@unique([userId, templateCode, channel])
+  @@map("notification_preferences")
+  @@schema("core")
+}
+
+// ============================================================
+// AI Platform（vector 列在 migration 中以 ALTER TABLE 添加 vector(1536) + HNSW）
+// ============================================================
+
+model ProductEmbedding {
+  skuId       String   @id @db.Uuid
+  contentHash String
+  updatedAt   DateTime @updatedAt
+
+  @@map("product_embeddings")
+  @@schema("core")
+}
+
+model DemandEmbedding {
+  buyerOrgId String   @id @db.Uuid
+  updatedAt  DateTime @updatedAt
+
+  @@map("demand_embeddings")
+  @@schema("core")
+}
+
+model KnowledgeDocument {
+  id        String    @id @default(uuid()) @db.Uuid
+  title     String
+  docKind   String
+  locale    String
+  fileKey   String?
+  status    String    @default("ACTIVE")
+  chunks    KnowledgeChunk[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy String?   @db.Uuid
+  updatedBy String?   @db.Uuid
+  deletedAt DateTime?
+  version   Int       @default(0)
+
+  @@map("knowledge_documents")
+  @@schema("core")
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(uuid()) @db.Uuid
+  documentId String            @db.Uuid
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id])
+  seq        Int
+  content    String
+
+  @@unique([documentId, seq])
+  @@map("knowledge_chunks")
+  @@schema("core")
+}
+
+model LlmCallLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  task        String
+  provider    String
+  model       String
+  tokensIn    Int
+  tokensOut   Int
+  costEur     Decimal? @db.Decimal(10, 6)
+  latencyMs   Int
+  actorUserId String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([task, createdAt])
+  @@map("llm_call_logs")
+  @@schema("analytics")
+}

@@ -1,0 +1,27 @@
+name: oussouri-dev
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: oussouri
+      POSTGRES_PASSWORD: oussouri_dev
+      POSTGRES_DB: oussouri
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oussouri"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6381:6379"
+    volumes:
+      - redisdata:/data
+volumes:
+  pgdata:
+  redisdata:
