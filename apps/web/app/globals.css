@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* Step 6 设计令牌：深海军蓝 × 鱼子酱金，Light/Dark 双模式 */
+@theme {
+  --color-background: #fafaf8;
+  --color-foreground: #1a1a1a;
+  --color-primary: #0f1b2d;
+  --color-primary-foreground: #f5f4f0;
+  --color-accent: #b08d46;
+  --color-accent-soft: #f3ecdd;
+  --color-muted: #6b6b66;
+  --color-card: #ffffff;
+  --color-border: #e4e2dc;
+  --color-destructive: #b3261e;
+  --color-success: #1d7a5f;
+  --color-warning: #9a6b0f;
+  --radius-md: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0c0c0e;
+    --color-foreground: #ededea;
+    --color-primary: #e8e6e0;
+    --color-primary-foreground: #14141a;
+    --color-accent: #c9a55c;
+    --color-accent-soft: #2a2418;
+    --color-muted: #8a8a85;
+    --color-card: #16161a;
+    --color-border: #2a2a30;
+  }
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-feature-settings: "tnum";
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-outline {
+  @apply border;
+  border-color: var(--color-border);
+  background: var(--color-card);
+}
+.btn-outline:hover { border-color: var(--color-accent); }
+.card {
+  @apply rounded-lg border p-4;
+  background: var(--color-card);
+  border-color: var(--color-border);
+}
+.input {
+  @apply w-full rounded-md border px-3 py-2 text-sm outline-none;
+  background: var(--color-card);
+  border-color: var(--color-border);
+}
+.input:focus { border-color: var(--color-accent); }
+.badge {
+  @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.label { @apply block text-xs font-medium mb-1; color: var(--color-muted); }
