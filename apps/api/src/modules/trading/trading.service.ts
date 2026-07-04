@@ -4,6 +4,7 @@ import { PrismaService } from "../../kernel/prisma/prisma.service";
 import { CodeGeneratorService } from "../../kernel/codegen/code-generator.service";
 import { StateMachineService } from "../../kernel/state-machine/state-machine.service";
 import { InventoryService } from "../inventory/inventory.service";
+import { pickPriceTier } from "./price-tier.util";
 import type { JwtPayload } from "../iam/auth.types";
 
 const SYSTEM_ROLE = "SYSTEM";
@@ -92,10 +93,7 @@ export class TradingService {
         let itemsTotal = new Prisma.Decimal(0);
         const itemRows: Prisma.OrderItemCreateManyInput[] = [];
         for (const { sku, qty } of lines) {
-          // 阶梯区间左闭右开 [qtyMin, qtyMax)：50kg 命中 "50 及以上" 档（初稿 §6.4 示例语义）
-          const tier = sku.priceTiers.find(
-            (t) => qty.gte(t.qtyMin) && (t.qtyMax == null || qty.lt(t.qtyMax)),
-          );
+          const tier = pickPriceTier(sku.priceTiers, qty);
           if (!tier) {
             throw new BadRequestException({ code: "VALIDATION_FAILED", detail: `${sku.skuCode} 无适用 ${input.currency} 阶梯价` });
           }

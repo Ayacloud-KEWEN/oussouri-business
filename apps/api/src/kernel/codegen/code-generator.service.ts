@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { randomInt } from "node:crypto";
+import { renderCodePattern } from "./code-pattern.util";
 
 /**
  * 编码引擎（GBR-2）：行锁递增 + 随机跳步防遍历。
@@ -23,18 +24,9 @@ export class CodeGeneratorService {
       const jump = BigInt(randomInt(1, Math.max(2, rule.jumpMax + 1)));
       const nextSeq = rule.currentSeq + jump;
       await client.$executeRaw`UPDATE core.code_rules SET "currentSeq" = ${nextSeq}, "updatedAt" = now() WHERE id = ${rule.id}::uuid`;
-      return this.render(rule.pattern, rule.prefix, rule.seqLength, nextSeq);
+      return renderCodePattern(rule.pattern, rule.prefix, rule.seqLength, nextSeq);
     };
     if (tx) return run(tx);
     return this.prisma.$transaction(run);
-  }
-
-  private render(pattern: string, prefix: string, seqLength: number, seq: bigint): string {
-    const now = new Date();
-    const date = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`;
-    return pattern
-      .replace("{prefix}", prefix)
-      .replace(/\{seq:(\d+)\}/, (_, n: string) => seq.toString().padStart(Math.max(Number(n), seqLength), "0"))
-      .replace("{date:YYYYMMDD}", date);
   }
 }

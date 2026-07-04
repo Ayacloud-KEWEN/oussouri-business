@@ -22,9 +22,12 @@ export class PiiFilterService {
   ];
 
   scan(text: string): PiiMatch[] {
+    // 平台公开编码（ORD-20261120-00001 / SP-000018 等）是合法沟通内容，
+    // 先剔除再扫描，避免其数字段被 PHONE 规则误判
+    const scrubbed = text.replace(/\b[A-Z]{2,4}-\d{8}-\d{4,6}\b/g, " ").replace(/\b[A-Z]{2,4}-\d{4,8}\b/g, " ");
     const matches: PiiMatch[] = [];
     for (const { name, pattern } of this.rules) {
-      const m = text.match(pattern);
+      const m = scrubbed.match(pattern);
       if (m?.[0]) matches.push({ rule: name, excerpt: m[0].slice(0, 50) });
     }
     return matches;
