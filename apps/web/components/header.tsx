@@ -35,8 +35,12 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
         <Link href={`/${locale}`} className="text-lg font-semibold tracking-wide" style={{ color: "var(--color-accent)" }}>
           {dict.brand}
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href={`/${locale}/market`}>{dict.nav.market}</Link>
+        <nav className="hidden items-center gap-4 text-sm md:flex">
+          <Link href={`/${locale}#insights`}>{dict.portal.navInsights}</Link>
+          <Link href={`/${locale}/market`}>{dict.portal.navMarketplace}</Link>
+          <Link href={`/${locale}#rfq`}>{dict.portal.navRfq}</Link>
+          <Link href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
+          <Link href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
           {roles.includes("BUYER") && <Link href={`/${locale}/buyer`}>{dict.nav.buyer}</Link>}
           {roles.includes("SUPPLIER") && <Link href={`/${locale}/supplier`}>{dict.nav.supplier}</Link>}
           {isAdmin && <Link href={`/${locale}/admin`}>{dict.nav.admin}</Link>}
