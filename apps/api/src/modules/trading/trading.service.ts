@@ -4,6 +4,7 @@ import { PrismaService } from "../../kernel/prisma/prisma.service";
 import { CodeGeneratorService } from "../../kernel/codegen/code-generator.service";
 import { StateMachineService } from "../../kernel/state-machine/state-machine.service";
 import { InventoryService } from "../inventory/inventory.service";
+import { FulfillmentService } from "../fulfillment/fulfillment.service";
 import { pickPriceTier } from "./price-tier.util";
 import type { JwtPayload } from "../iam/auth.types";
 
@@ -16,6 +17,7 @@ export class TradingService {
     private readonly codegen: CodeGeneratorService,
     private readonly stateMachine: StateMachineService,
     private readonly inventory: InventoryService,
+    private readonly fulfillment: FulfillmentService,
   ) {}
 
   // ---------- 购物车 ----------
@@ -192,6 +194,11 @@ export class TradingService {
     const roles = opts.asSystem ? [SYSTEM_ROLE, ...user.roles] : user.roles;
     const { emitsEvent } = await this.stateMachine.assertAllowed("ORDER", order.status, toState, roles);
 
+    // 发货守卫（M11/M12）：运单已登记 + 单证 7 件套齐备，缺件拒绝
+    if (toState === "SHIPPED") {
+      await this.fulfillment.assertReadyToShip(order.id);
+    }
+
     await this.prisma.$transaction(async (tx) => {
       const updated = await tx.tradeOrder.updateMany({
         where: { id: order.id, version: order.version },
@@ -215,6 +222,7 @@ export class TradingService {
         if (firstLot) {
           await tx.orderItem.updateMany({ where: { orderId: order.id, lotId: null }, data: { lotId: firstLot.lotId } });
         }
+        await this.fulfillment.markInTransitInTx(tx, order.id);
       }
       await this.stateMachine.recordInTx(
         tx, "ORDER", order.status, toState,

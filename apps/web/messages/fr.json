@@ -203,5 +203,20 @@
     "supplier": "Fournisseur",
     "empty": "Rien ici"
   },
+  "fulfil": {
+    "prep": "Préparation d'expédition",
+    "carrier": "Transporteur",
+    "waybill": "N° LTA",
+    "from": "Départ",
+    "to": "Arrivée",
+    "registerShipment": "Enregistrer l'expédition",
+    "docType": "Type de document",
+    "docNo": "N° de document",
+    "addDoc": "Enregistrer le document",
+    "checklist": "Documents requis",
+    "missing": "Manquant",
+    "complete": "Complet — prêt à expédier",
+    "shipmentRegistered": "Expédition enregistrée"
+  },
   "common": { "status": "Statut", "actions": "Actions", "amount": "Montant", "loading": "Chargement…", "error": "Une erreur est survenue", "success": "Terminé" }
 }

@@ -4,9 +4,10 @@ import { TradingController } from "./trading.controller";
 import { RfqService } from "./rfq.service";
 import { RfqController } from "./rfq.controller";
 import { InventoryModule } from "../inventory/inventory.module";
+import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 
 @Module({
-  imports: [InventoryModule],
+  imports: [InventoryModule, FulfillmentModule],
   controllers: [TradingController, RfqController],
   providers: [TradingService, RfqService],
   exports: [TradingService],

@@ -203,5 +203,20 @@
     "supplier": "供应商",
     "empty": "暂无"
   },
+  "fulfil": {
+    "prep": "发货准备",
+    "carrier": "承运商",
+    "waybill": "运单号",
+    "from": "起运",
+    "to": "抵达",
+    "registerShipment": "登记运单",
+    "docType": "单证类型",
+    "docNo": "单证编号",
+    "addDoc": "登记单证",
+    "checklist": "单证齐备度",
+    "missing": "缺件",
+    "complete": "齐备，可发货",
+    "shipmentRegistered": "运单已登记"
+  },
   "common": { "status": "状态", "actions": "操作", "amount": "金额", "loading": "加载中…", "error": "操作失败", "success": "操作成功" }
 }

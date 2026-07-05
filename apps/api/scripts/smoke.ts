@@ -176,6 +176,14 @@ async function main(): Promise<void> {
   console.log("9. 履约流转");
   const confirm = await api("POST", `/supplier/orders/${orderCode}/confirm`, {}, supplierToken);
   check("供应商接单 CONFIRMED", confirm.json?.status === "CONFIRMED", confirm.json);
+  // P2.2 发货守卫：登记运单 + 7 件套单证
+  await api("POST", `/supplier/orders/${orderCode}/shipment`, {
+    incoterms: "CIF",
+    legs: [{ mode: "AIR", carrier: "Air China Cargo", waybillNo: "784-09040220", fromCode: "HRB", toCode: "CDG" }],
+  }, supplierToken);
+  for (const docType of ["COMMERCIAL_INVOICE", "CITES", "ORIGIN_CERT", "PACKING_LIST", "AWB", "SANITARY_CERT", "HEALTH_CERT"]) {
+    await api("POST", "/documents", { docType, docNo: `${docType}-${run}`, orderCode }, supplierToken);
+  }
   const ship = await api("POST", `/supplier/orders/${orderCode}/ship`, {}, supplierToken);
   check("发货 SHIPPED（出库扣减）", ship.json?.status === "SHIPPED", ship.json);
   const deliver = await api("POST", `/buyer/orders/${orderCode}/confirm-delivery`, {}, buyerToken);

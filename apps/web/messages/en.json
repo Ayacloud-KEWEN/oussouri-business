@@ -203,5 +203,20 @@
     "supplier": "Supplier",
     "empty": "Nothing here"
   },
+  "fulfil": {
+    "prep": "Shipping preparation",
+    "carrier": "Carrier",
+    "waybill": "Waybill no.",
+    "from": "From",
+    "to": "To",
+    "registerShipment": "Register shipment",
+    "docType": "Document type",
+    "docNo": "Document no.",
+    "addDoc": "Register document",
+    "checklist": "Document checklist",
+    "missing": "Missing",
+    "complete": "Complete — ready to ship",
+    "shipmentRegistered": "Shipment registered"
+  },
   "common": { "status": "Status", "actions": "Actions", "amount": "Amount", "loading": "Loading…", "error": "Something went wrong", "success": "Done" }
 }

@@ -16,6 +16,7 @@ import { TradingModule } from "./modules/trading/trading.module";
 import { SettlementModule } from "./modules/settlement/settlement.module";
 import { CommunicationModule } from "./modules/communication/communication.module";
 import { BrokerageModule } from "./modules/brokerage/brokerage.module";
+import { FulfillmentModule } from "./modules/fulfillment/fulfillment.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { BrokerageModule } from "./modules/brokerage/brokerage.module";
     SettlementModule,
     CommunicationModule,
     BrokerageModule,
+    FulfillmentModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

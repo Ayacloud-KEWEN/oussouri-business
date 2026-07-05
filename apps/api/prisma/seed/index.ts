@@ -119,7 +119,46 @@ async function seedP2StateMachines(): Promise<void> {
       update: { allowedRoles: t.roles, emitsEvent: t.emits ?? null },
     });
   }
-  for (const code of ["ORDER_PAYMENT_LINK", "OPPORTUNITY_NEW", "RFQ_QUOTED"]) {
+  // SHIPMENT（M10）
+  await prisma.stateMachine.upsert({
+    where: { code: "SHIPMENT" },
+    create: { code: "SHIPMENT", states: ["PREPARING", "IN_TRANSIT", "ARRIVED", "DELIVERED", "EXCEPTION"] },
+    update: {},
+  });
+  const shipmentTransitions = [
+    { from: "PREPARING", to: "IN_TRANSIT", roles: ["SUPPLIER", "LOGISTICS_OPERATOR", "SYSTEM", "ADMIN"] },
+    { from: "IN_TRANSIT", to: "ARRIVED", roles: ["LOGISTICS_OPERATOR", "ADMIN"] },
+    { from: "ARRIVED", to: "DELIVERED", roles: ["LOGISTICS_OPERATOR", "SYSTEM", "ADMIN"] },
+    { from: "IN_TRANSIT", to: "EXCEPTION", roles: ["LOGISTICS_OPERATOR", "SYSTEM", "ADMIN"] },
+  ];
+  for (const t of shipmentTransitions) {
+    await prisma.stateTransition.upsert({
+      where: { machineCode_fromState_toState: { machineCode: "SHIPMENT", fromState: t.from, toState: t.to } },
+      create: { machineCode: "SHIPMENT", fromState: t.from, toState: t.to, allowedRoles: t.roles },
+      update: { allowedRoles: t.roles },
+    });
+  }
+  // CUSTOMS（M11）
+  await prisma.stateMachine.upsert({
+    where: { code: "CUSTOMS" },
+    create: { code: "CUSTOMS", states: ["DRAFT", "SUBMITTED", "INSPECTION", "CLEARED", "REJECTED"] },
+    update: {},
+  });
+  const customsTransitions = [
+    { from: "DRAFT", to: "SUBMITTED", roles: ["CUSTOMS_OFFICER", "ADMIN"], emits: "CustomsSubmitted" },
+    { from: "SUBMITTED", to: "INSPECTION", roles: ["CUSTOMS_OFFICER", "ADMIN"] },
+    { from: "SUBMITTED", to: "CLEARED", roles: ["CUSTOMS_OFFICER", "ADMIN"], emits: "CustomsCleared" },
+    { from: "INSPECTION", to: "CLEARED", roles: ["CUSTOMS_OFFICER", "ADMIN"], emits: "CustomsCleared" },
+    { from: "INSPECTION", to: "REJECTED", roles: ["CUSTOMS_OFFICER", "ADMIN"] },
+  ];
+  for (const t of customsTransitions) {
+    await prisma.stateTransition.upsert({
+      where: { machineCode_fromState_toState: { machineCode: "CUSTOMS", fromState: t.from, toState: t.to } },
+      create: { machineCode: "CUSTOMS", fromState: t.from, toState: t.to, allowedRoles: t.roles, emitsEvent: t.emits },
+      update: { allowedRoles: t.roles, emitsEvent: t.emits ?? null },
+    });
+  }
+  for (const code of ["ORDER_PAYMENT_LINK", "OPPORTUNITY_NEW", "RFQ_QUOTED", "TEMP_BREACH"]) {
     await prisma.notificationTemplate.upsert({
       where: { code },
       create: { code, channels: ["INAPP", "EMAIL"] },

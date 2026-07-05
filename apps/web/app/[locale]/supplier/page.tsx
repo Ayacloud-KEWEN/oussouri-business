@@ -8,6 +8,77 @@ interface SupplierProduct { code: string; name: string; status: string; skuCount
 interface Lot { skuCode: string; lotNo: string; qtyOnHand: string; qtyReserved: string; expiresAt: string; status: string }
 interface Order { code: string; status: string; counterpartyCode: string; grandTotal: string; commission?: string; currency: string }
 interface OpenRfq { code: string; buyerCode?: string; buyerCountry?: string; categoryCode: string; speciesCode?: string; qty: string; targetPrice?: string; deadline: string; alreadyQuoted: boolean }
+interface Checklist { required: string[]; present: string[]; missing: string[]; complete: boolean }
+
+const DOC_TYPES = ["COMMERCIAL_INVOICE", "CITES", "ORIGIN_CERT", "PACKING_LIST", "AWB", "SANITARY_CERT", "HEALTH_CERT"];
+
+function FulfilPanel({ orderCode, dict, act }: { orderCode: string; dict: ReturnType<typeof getDictionary>; act: (fn: () => Promise<unknown>, msg?: string) => Promise<void> }) {
+  const t = dict.fulfil;
+  const [checklist, setChecklist] = useState<Checklist | null>(null);
+  const [ship, setShip] = useState({ carrier: "Air China Cargo", waybillNo: "", fromCode: "HRB", toCode: "CDG" });
+  const [doc, setDoc] = useState({ docType: DOC_TYPES[0]!, docNo: "" });
+
+  const loadChecklist = async () => setChecklist(await api<Checklist>("GET", `/orders/${orderCode}/doc-checklist`).catch(() => null));
+  useEffect(() => { void loadChecklist(); }, [orderCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="mt-2 space-y-3 rounded-md border p-3 text-xs" style={{ borderColor: "var(--color-border)" }}>
+      <p className="font-medium" style={{ color: "var(--color-accent)" }}>{t.prep}</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div><label className="label">{t.carrier}</label><input className="input w-40" value={ship.carrier} onChange={(e) => setShip({ ...ship, carrier: e.target.value })} /></div>
+        <div><label className="label">{t.waybill}</label><input className="input w-36" value={ship.waybillNo} onChange={(e) => setShip({ ...ship, waybillNo: e.target.value })} /></div>
+        <div><label className="label">{t.from}</label><input className="input w-20" value={ship.fromCode} onChange={(e) => setShip({ ...ship, fromCode: e.target.value.toUpperCase() })} /></div>
+        <div><label className="label">{t.to}</label><input className="input w-20" value={ship.toCode} onChange={(e) => setShip({ ...ship, toCode: e.target.value.toUpperCase() })} /></div>
+        <button
+          className="btn btn-outline"
+          onClick={() => act(async () => {
+            await api("POST", `/supplier/orders/${orderCode}/shipment`, { incoterms: "CIF", legs: [{ mode: "AIR", ...ship }] });
+            await loadChecklist();
+          }, dict.fulfil.shipmentRegistered)}
+        >
+          {t.registerShipment}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <div>
+          <label className="label">{t.docType}</label>
+          <select className="input w-48" value={doc.docType} onChange={(e) => setDoc({ ...doc, docType: e.target.value })}>
+            {DOC_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div><label className="label">{t.docNo}</label><input className="input w-40" value={doc.docNo} onChange={(e) => setDoc({ ...doc, docNo: e.target.value })} /></div>
+        <button
+          className="btn btn-outline"
+          onClick={() => act(async () => {
+            await api("POST", "/documents", { ...doc, orderCode });
+            await loadChecklist();
+          })}
+        >
+          {t.addDoc}
+        </button>
+      </div>
+      {checklist && checklist.required.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span style={{ color: "var(--color-muted)" }}>{t.checklist}:</span>
+          {checklist.required.map((d) => (
+            <span
+              key={d}
+              className="rounded px-1.5 py-0.5"
+              style={checklist.present.includes(d)
+                ? { background: "var(--color-accent-soft)", color: "var(--color-accent)" }
+                : { background: "transparent", color: "var(--color-destructive)", border: "1px solid var(--color-destructive)" }}
+            >
+              {checklist.present.includes(d) ? "✓" : "✗"} {d}
+            </span>
+          ))}
+          <span className="ml-2 font-medium" style={{ color: checklist.complete ? "var(--color-success)" : "var(--color-destructive)" }}>
+            {checklist.complete ? t.complete : `${t.missing} ${checklist.missing.length}`}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SupplierPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = use(params);
@@ -198,19 +269,22 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.supplier.orders}</h2>
         <div className="space-y-3">
           {orders.map((o) => (
-            <div key={o.code} className="card flex flex-wrap items-center gap-3 text-sm">
-              <span className="font-mono">{o.code}</span>
-              <span className="badge">{o.status}</span>
-              <span style={{ color: "var(--color-muted)" }}>{dict.supplier.counterparty}: {o.counterpartyCode}</span>
-              <span className="font-medium">€{o.grandTotal}</span>
-              <div className="ml-auto flex gap-2">
-                {o.status === "PAID_ESCROW" && (
-                  <button className="btn btn-primary" onClick={() => act(() => api("POST", `/supplier/orders/${o.code}/confirm`, {}))}>{dict.supplier.confirm}</button>
-                )}
-                {o.status === "CONFIRMED" && (
-                  <button className="btn btn-primary" onClick={() => act(() => api("POST", `/supplier/orders/${o.code}/ship`, {}))}>{dict.supplier.ship}</button>
-                )}
+            <div key={o.code} className="card text-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono">{o.code}</span>
+                <span className="badge">{o.status}</span>
+                <span style={{ color: "var(--color-muted)" }}>{dict.supplier.counterparty}: {o.counterpartyCode}</span>
+                <span className="font-medium">€{o.grandTotal}</span>
+                <div className="ml-auto flex gap-2">
+                  {o.status === "PAID_ESCROW" && (
+                    <button className="btn btn-primary" onClick={() => act(() => api("POST", `/supplier/orders/${o.code}/confirm`, {}))}>{dict.supplier.confirm}</button>
+                  )}
+                  {o.status === "CONFIRMED" && (
+                    <button className="btn btn-primary" onClick={() => act(() => api("POST", `/supplier/orders/${o.code}/ship`, {}))}>{dict.supplier.ship}</button>
+                  )}
+                </div>
               </div>
+              {o.status === "CONFIRMED" && <FulfilPanel orderCode={o.code} dict={dict} act={act} />}
             </div>
           ))}
         </div>
