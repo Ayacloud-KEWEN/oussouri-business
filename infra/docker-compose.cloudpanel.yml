@@ -1,0 +1,63 @@
+# OUSSOURI @ CloudPanel 共存部署（与其他站点同机）
+# - 不含 nginx/certbot：TLS 与反代由 CloudPanel 的 Nginx 承担
+# - 所有端口仅绑定 127.0.0.1，且避开常用端口（其他应用共存）
+# 使用: docker compose -f infra/docker-compose.cloudpanel.yml --env-file .env.production up -d
+name: oussouri
+services:
+  web:
+    image: oussouri-web:latest
+    restart: always
+    environment:
+      API_URL: http://api:3001
+    ports:
+      - "127.0.0.1:3100:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    image: oussouri-api:latest
+    restart: always
+    env_file:
+      - ../.env.production
+    ports:
+      - "127.0.0.1:3101:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-oussouri}
+    ports:
+      - "127.0.0.1:5438:5432"   # 仅本机可连（备份/排障用）
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:
