@@ -231,6 +231,78 @@ export class FulfillmentService {
     }
   }
 
+  // ---------- 单证脱敏发送（M12 FR-12-02/12-03，P2.3） ----------
+
+  /** 登记遮盖模板（新单证类型首次人工标注遮盖区，BR-12-01） */
+  async setMaskTemplate(documentId: string, regions: { page: number; x: number; y: number; w: number; h: number; label: string }[], user: JwtPayload) {
+    const doc = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
+    if (!doc) throw new NotFoundException({ code: "NOT_FOUND", detail: "单证不存在" });
+    await this.prisma.document.update({
+      where: { id: documentId },
+      data: { maskTemplate: { regions } as Prisma.InputJsonValue, updatedBy: user.sub, version: { increment: 1 } },
+    });
+    await this.audit.log({ actorId: user.sub, action: "MASK_TEMPLATE_SET", targetType: "Document", targetId: documentId, diff: { regions: regions.length } });
+    return { documentId, regions: regions.length };
+  }
+
+  /**
+   * 生成脱敏副本并发送到对方平台档案：遮盖公章/厂名区域 + 平台水印 + 唯一追踪码。
+   * 原件永不外发；副本可追踪（谁生成/发给谁/何时）。
+   * PDF 像素级遮盖渲染由 worker 异步处理（P3）；本阶段落地元数据流与档案送达。
+   */
+  async createMaskedCopy(documentId: string, toOrgCode: string, user: JwtPayload) {
+    const doc = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
+    if (!doc) throw new NotFoundException({ code: "NOT_FOUND", detail: "单证不存在" });
+    if (!doc.maskTemplate) {
+      throw new ConflictException({ code: "VALIDATION_FAILED", detail: "该单证尚未标注遮盖模板，禁止外发（BR-12-01）" });
+    }
+    const toOrg = await this.prisma.organization.findFirst({ where: { publicCode: toOrgCode, deletedAt: null } });
+    if (!toOrg) throw new NotFoundException({ code: "NOT_FOUND", detail: "接收方不存在" });
+
+    const trackingCode = `TRK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const copy = await this.prisma.maskedDocumentCopy.create({
+      data: {
+        documentId: doc.id,
+        trackingCode,
+        generatedBy: user.sub,
+        sentToOrgId: toOrg.id,
+        fileKey: `masked/${trackingCode}.pdf`,
+        sentAt: new Date(),
+      },
+    });
+    await this.audit.log({
+      actorId: user.sub,
+      actorRole: user.roles.join(","),
+      action: "MASKED_DOC_SENT",
+      targetType: "Document",
+      targetId: doc.id,
+      diff: { trackingCode, toOrgCode, docType: doc.docType },
+    });
+    const memberships = await this.prisma.membership.findMany({ where: { orgId: toOrg.id, deletedAt: null } });
+    for (const m of memberships) {
+      await this.comm.notifyUser(m.userId, "DOC_RECEIVED", { docType: doc.docType, trackingCode, docNo: doc.docNo });
+    }
+    return { trackingCode, copyId: copy.id, docType: doc.docType };
+  }
+
+  /** 接收方档案：我组织收到的脱敏副本（永不含原件 fileKey） */
+  async listReceivedCopies(user: JwtPayload) {
+    if (!user.orgId) return [];
+    const copies = await this.prisma.maskedDocumentCopy.findMany({
+      where: { sentToOrgId: user.orgId },
+      orderBy: { sentAt: "desc" },
+      include: { document: { select: { docType: true, docNo: true, issueDate: true, expiryDate: true } } },
+    });
+    return copies.map((c) => ({
+      trackingCode: c.trackingCode,
+      docType: c.document.docType,
+      docNo: c.document.docNo,
+      issueDate: c.document.issueDate,
+      expiryDate: c.document.expiryDate,
+      sentAt: c.sentAt,
+    }));
+  }
+
   // ---------- 清关（M11，状态联动订单） ----------
 
   async createDeclaration(

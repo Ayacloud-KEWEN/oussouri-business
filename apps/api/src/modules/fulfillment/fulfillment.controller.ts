@@ -65,6 +65,21 @@ class DeductDto {
   @IsNumber() @IsPositive() kg!: number;
 }
 
+class MaskRegionDto {
+  @IsNumber() page!: number;
+  @IsNumber() x!: number;
+  @IsNumber() y!: number;
+  @IsNumber() w!: number;
+  @IsNumber() h!: number;
+  @IsString() @MaxLength(50) label!: string;
+}
+class MaskTemplateDto {
+  @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => MaskRegionDto) regions!: MaskRegionDto[];
+}
+class MaskedCopyDto {
+  @IsString() toOrgCode!: string;
+}
+
 @Controller()
 export class FulfillmentController {
   constructor(private readonly fulfillment: FulfillmentService) {}
@@ -97,6 +112,24 @@ export class FulfillmentController {
   @Get("orders/:code/doc-checklist")
   checklist(@Param("code") code: string, @CurrentUser() user: JwtPayload) {
     return this.fulfillment.docChecklist(code, user);
+  }
+
+  // 单证脱敏发送（P2.3）
+  @Roles("BROKER", "CUSTOMS_OFFICER", "ADMIN")
+  @Post("documents/:id/mask-template")
+  maskTemplate(@Param("id") id: string, @Body() dto: MaskTemplateDto, @CurrentUser() user: JwtPayload) {
+    return this.fulfillment.setMaskTemplate(id, dto.regions, user);
+  }
+
+  @Roles("BROKER", "CUSTOMS_OFFICER", "ADMIN")
+  @Post("documents/:id/masked-copies")
+  maskedCopy(@Param("id") id: string, @Body() dto: MaskedCopyDto, @CurrentUser() user: JwtPayload) {
+    return this.fulfillment.createMaskedCopy(id, dto.toOrgCode, user);
+  }
+
+  @Get("documents/received")
+  received(@CurrentUser() user: JwtPayload) {
+    return this.fulfillment.listReceivedCopies(user);
   }
 
   // 清关

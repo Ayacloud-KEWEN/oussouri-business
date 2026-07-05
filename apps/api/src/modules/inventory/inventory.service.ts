@@ -12,7 +12,7 @@ export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async inbound(
-    input: { skuCode: string; lotNo: string; qty: number; producedAt: string; expiresAt: string; warehouse?: string },
+    input: { skuCode: string; lotNo: string; qty: number; producedAt: string; expiresAt: string; warehouse?: string; processingBatchNo?: string },
     user: JwtPayload,
   ) {
     const sku = await this.prisma.productSku.findFirst({
@@ -23,11 +23,24 @@ export class InventoryService {
     if (sku.product.supplierOrgId !== user.orgId) {
       throw new ForbiddenException({ code: "PERM_SCOPE_VIOLATION", detail: "只能操作本组织库存" });
     }
+    // 溯源链（BR-02-01）：入库可关联本组织加工批次
+    let processingBatchId: string | null = null;
+    if (input.processingBatchNo) {
+      const batch = await this.prisma.processingBatch.findFirst({
+        where: { supplierOrgId: user.orgId!, batchNo: input.processingBatchNo, deletedAt: null },
+      });
+      if (!batch) throw new NotFoundException({ code: "NOT_FOUND", detail: "加工批次不存在" });
+      if (batch.qcStatus === "QC_FAIL") {
+        throw new ConflictException({ code: "STATE_GUARD_FAILED", detail: "质检不合格的加工批次不能入库" });
+      }
+      processingBatchId = batch.id;
+    }
     return this.prisma.$transaction(async (tx) => {
       const lot = await tx.inventoryLot.upsert({
         where: { skuId_lotNo: { skuId: sku.id, lotNo: input.lotNo } },
         create: {
           skuId: sku.id,
+          processingBatchId,
           lotNo: input.lotNo,
           producedAt: new Date(input.producedAt),
           expiresAt: new Date(input.expiresAt),

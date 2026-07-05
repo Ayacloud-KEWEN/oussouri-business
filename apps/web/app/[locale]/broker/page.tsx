@@ -24,9 +24,11 @@ export default function BrokerPage({ params }: { params: Promise<{ locale: strin
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [orderForm, setOrderForm] = useState<{ opportunityCode: string; buyerOrgCode: string; skuCode: string; qty: number; unitPriceEur: number } | null>(null);
+  const [calls, setCalls] = useState<{ callId: string; targetOrgCode?: string; startedAt?: string; durationSec?: number; outcome: string }[]>([]);
 
   const refresh = useCallback(async () => {
     setOpps(await api<Opportunity[]>("GET", "/broker/opportunities").catch(() => []));
+    setCalls(await api<typeof calls>("GET", "/broker/calls").catch(() => []));
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -79,6 +81,14 @@ export default function BrokerPage({ params }: { params: Promise<{ locale: strin
               {!o.assignedToMe && (
                 <button className="btn btn-outline" onClick={() => act(() => api("POST", `/broker/opportunities/${o.code}/claim`, {}))}>{t.claim}</button>
               )}
+              {o.assignedToMe && (
+                <button
+                  className="btn btn-outline"
+                  onClick={() => act(() => api("POST", "/broker/calls", { targetOrgCode: o.buyerCode, opportunityCode: o.code }), t.callStarted)}
+                >
+                  {t.call}
+                </button>
+              )}
               {o.status === "NEW" && o.assignedToMe && (
                 <button className="btn btn-outline" onClick={() => act(() => api("POST", `/broker/opportunities/${o.code}/transition`, { toState: "CONTACTED" }))}>
                   {t.markContacted}
@@ -101,6 +111,22 @@ export default function BrokerPage({ params }: { params: Promise<{ locale: strin
           </div>
         ))}
       </section>
+
+      {calls.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{t.calls}</h2>
+          <div className="card space-y-1.5 text-xs">
+            {calls.map((c) => (
+              <div key={c.callId} className="flex flex-wrap gap-3">
+                <span className="font-mono">{c.targetOrgCode}</span>
+                <span style={{ color: "var(--color-muted)" }}>{c.startedAt?.slice(0, 16).replace("T", " ")}</span>
+                <span className="badge">{c.outcome}</span>
+                {c.durationSec != null && <span style={{ color: "var(--color-muted)" }}>{c.durationSec}s</span>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {orderForm && (
         <section className="card space-y-3">

@@ -12,6 +12,100 @@ interface Checklist { required: string[]; present: string[]; missing: string[]; 
 
 const DOC_TYPES = ["COMMERCIAL_INVOICE", "CITES", "ORIGIN_CERT", "PACKING_LIST", "AWB", "SANITARY_CERT", "HEALTH_CERT"];
 
+interface TraceUnit { unitId: string; name: string; countryIso2: string }
+interface ProcBatch { processingBatchId: string; batchNo: string; qcStatus: string; outputWeightKg: string }
+
+function TraceCenter({ dict, act }: { dict: ReturnType<typeof getDictionary>; act: (fn: () => Promise<unknown>, msg?: string) => Promise<void> }) {
+  const t = dict.trace;
+  const [units, setUnits] = useState<TraceUnit[]>([]);
+  const [batches, setBatches] = useState<ProcBatch[]>([]);
+  const [unit, setUnit] = useState({ name: "", location: "", countryIso2: "CN" });
+  const [proc, setProc] = useState({ batchNo: "", categoryCode: "CAVIAR", speciesCode: "DAU", rawWeightKg: 500, outputWeightKg: 50 });
+
+  const refresh = async () => {
+    setUnits(await api<TraceUnit[]>("GET", "/supplier/production-units").catch(() => []));
+    setBatches(await api<ProcBatch[]>("GET", "/supplier/processing-batches").catch(() => []));
+  };
+  useEffect(() => { void refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="card space-y-3">
+        <h3 className="text-sm font-medium">{t.newUnit}</h3>
+        <div>
+          <label className="label">{t.unitName}</label>
+          <input className="input" value={unit.name} onChange={(e) => setUnit({ ...unit, name: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">{t.location}</label>
+            <input className="input" value={unit.location} onChange={(e) => setUnit({ ...unit, location: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">{dict.auth.country}</label>
+            <input className="input" maxLength={2} value={unit.countryIso2} onChange={(e) => setUnit({ ...unit, countryIso2: e.target.value.toUpperCase() })} />
+          </div>
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => act(async () => {
+            await api("POST", "/supplier/production-units", { unitType: "FARM", ...unit });
+            await refresh();
+          })}
+        >
+          {dict.supplier.create}
+        </button>
+        <div className="space-y-1 border-t pt-2 text-xs" style={{ borderColor: "var(--color-border)" }}>
+          {units.map((u) => <div key={u.unitId}>◉ {u.name} · {u.countryIso2}</div>)}
+        </div>
+      </div>
+      <div className="card space-y-3">
+        <h3 className="text-sm font-medium">{t.newProcessing}</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">{t.batchNo}</label>
+            <input className="input" value={proc.batchNo} onChange={(e) => setProc({ ...proc, batchNo: e.target.value })} placeholder="HZBSC20260701" />
+          </div>
+          <div>
+            <label className="label">{dict.market.species}</label>
+            <input className="input" value={proc.speciesCode} onChange={(e) => setProc({ ...proc, speciesCode: e.target.value.toUpperCase() })} />
+          </div>
+          <div>
+            <label className="label">{t.rawKg}</label>
+            <input className="input" type="number" value={proc.rawWeightKg} onChange={(e) => setProc({ ...proc, rawWeightKg: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="label">{t.outputKg}</label>
+            <input className="input" type="number" value={proc.outputWeightKg} onChange={(e) => setProc({ ...proc, outputWeightKg: Number(e.target.value) })} />
+          </div>
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => act(async () => {
+            await api("POST", "/supplier/processing-batches", {
+              ...proc,
+              processedAt: new Date().toISOString(),
+              steps: [{ stepCode: "EGG_SORTING" }, { stepCode: "SALTING" }, { stepCode: "CANNING" }, { stepCode: "AGING" }],
+            });
+            await refresh();
+          })}
+        >
+          {dict.supplier.create}
+        </button>
+        <div className="space-y-1 border-t pt-2 text-xs" style={{ borderColor: "var(--color-border)" }}>
+          {batches.map((b) => (
+            <div key={b.processingBatchId} className="flex gap-2">
+              <span className="font-mono">{b.batchNo}</span>
+              <span className="badge">{b.qcStatus}</span>
+              <span style={{ color: "var(--color-muted)" }}>{b.outputWeightKg} kg</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FulfilPanel({ orderCode, dict, act }: { orderCode: string; dict: ReturnType<typeof getDictionary>; act: (fn: () => Promise<unknown>, msg?: string) => Promise<void> }) {
   const t = dict.fulfil;
   const [checklist, setChecklist] = useState<Checklist | null>(null);
@@ -197,6 +291,12 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
             <button className="btn btn-primary" type="submit">{dict.supplier.create}</button>
           </form>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.trace.title}</h2>
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>{dict.trace.linkHint}</p>
+        <TraceCenter dict={dict} act={act} />
       </section>
 
       <section className="space-y-3">

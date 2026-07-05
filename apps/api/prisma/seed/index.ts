@@ -158,7 +158,7 @@ async function seedP2StateMachines(): Promise<void> {
       update: { allowedRoles: t.roles, emitsEvent: t.emits ?? null },
     });
   }
-  for (const code of ["ORDER_PAYMENT_LINK", "OPPORTUNITY_NEW", "RFQ_QUOTED", "TEMP_BREACH"]) {
+  for (const code of ["ORDER_PAYMENT_LINK", "OPPORTUNITY_NEW", "RFQ_QUOTED", "TEMP_BREACH", "DOC_RECEIVED"]) {
     await prisma.notificationTemplate.upsert({
       where: { code },
       create: { code, channels: ["INAPP", "EMAIL"] },

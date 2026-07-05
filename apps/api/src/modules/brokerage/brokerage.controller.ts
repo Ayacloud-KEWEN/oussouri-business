@@ -3,6 +3,7 @@ import { IsIn, IsNumber, IsOptional, IsPositive, IsString, MaxLength } from "cla
 import { BrokerageService } from "./brokerage.service";
 import { MatchmakingService } from "./matchmaking.service";
 import { CurrentUser, Roles } from "../iam/roles.guard";
+import { Public } from "../iam/jwt-auth.guard";
 import type { JwtPayload } from "../iam/auth.types";
 
 class TransitionDto {
@@ -13,6 +14,11 @@ class TransitionDto {
 class ActivityDto {
   @IsIn(["CALL", "MESSAGE_SENT", "DOC_SENT", "NOTE"]) activityType!: string;
   @IsString() @MaxLength(2000) note!: string;
+}
+
+class StartCallDto {
+  @IsString() targetOrgCode!: string;
+  @IsOptional() @IsString() opportunityCode?: string;
 }
 
 class BrokerOrderDto {
@@ -56,11 +62,35 @@ export class BrokerageController {
     return this.brokerage.createBrokerOrder(dto, user);
   }
 
+  // 代理外呼（P2.5）
+  @Post("calls")
+  startCall(@Body() dto: StartCallDto, @CurrentUser() user: JwtPayload) {
+    return this.brokerage.startCall(dto.targetOrgCode, dto.opportunityCode, user);
+  }
+
+  @Get("calls")
+  calls(@CurrentUser() user: JwtPayload) {
+    return this.brokerage.listCalls(user);
+  }
+
   /** 手动触发撮合（调试/演示；生产由 cron 驱动） */
   @Post("matchmaking/run")
   @Roles("ADMIN", "BROKER")
   async runMatchmaking() {
     const created = await this.matchmaking.runRules();
     return { created };
+  }
+}
+
+/** Twilio 状态回调（form-encoded；假适配器场景下由冒烟脚本直接调用） */
+@Controller("webhooks/twilio")
+export class TwilioWebhookController {
+  constructor(private readonly brokerage: BrokerageService) {}
+
+  @Public()
+  @Post("call-status")
+  callStatus(@Body() body: { CallSid?: string; CallStatus?: string; CallDuration?: string }) {
+    if (!body.CallSid) return { ok: false };
+    return this.brokerage.updateCallStatus(body.CallSid, body.CallStatus ?? "completed", body.CallDuration ? Number(body.CallDuration) : undefined);
   }
 }

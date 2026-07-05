@@ -179,7 +179,31 @@
     "buyerCode": "Code acheteur",
     "unitPrice": "Prix convenu EUR",
     "orderCreated": "Commande d'intention créée, acheteur notifié (blocage 24h)",
-    "empty": "Aucune opportunité — lancez le matching"
+    "empty": "Aucune opportunité — lancez le matching",
+    "call": "Appeler via la plateforme",
+    "calls": "Journal d'appels",
+    "callStarted": "Appel lancé (numéro masqué)",
+    "sendDoc": "Envoyer doc anonymisé",
+    "docSent": "Copie anonymisée livrée dans leurs archives"
+  },
+  "trace": {
+    "title": "Centre de traçabilité",
+    "newUnit": "Enregistrer un site",
+    "unitName": "Nom du site (visible par votre organisation et la plateforme uniquement)",
+    "location": "Localisation",
+    "newBatch": "Lot d'origine",
+    "batchNo": "N° de lot",
+    "subunit": "Bassin / atelier",
+    "newProcessing": "Lot de transformation",
+    "rawKg": "Matière (kg)",
+    "outputKg": "Produit (kg)",
+    "linkHint": "Indiquez le n° de lot de transformation à l'entrée en stock pour lier la chaîne",
+    "qc": "Contrôle qualité"
+  },
+  "docs": {
+    "received": "Archives documentaires (copies anonymisées)",
+    "trackingCode": "Code de suivi",
+    "empty": "Aucun document reçu"
   },
   "rfq": {
     "title": "Appel d'offres inversé (RFQ)",

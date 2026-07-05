@@ -179,7 +179,31 @@
     "buyerCode": "Buyer code",
     "unitPrice": "Agreed price EUR",
     "orderCreated": "Intent order created and buyer notified (24h hold)",
-    "empty": "No opportunities yet — run matchmaking"
+    "empty": "No opportunities yet — run matchmaking",
+    "call": "Call via platform",
+    "calls": "Call log",
+    "callStarted": "Call started (number hidden from you)",
+    "sendDoc": "Send masked doc",
+    "docSent": "Masked copy delivered to their archive"
+  },
+  "trace": {
+    "title": "Traceability center",
+    "newUnit": "Register unit",
+    "unitName": "Unit name (visible to your org and platform only)",
+    "location": "Location",
+    "newBatch": "Source batch",
+    "batchNo": "Batch no.",
+    "subunit": "Pond / workshop",
+    "newProcessing": "Processing batch",
+    "rawKg": "Raw (kg)",
+    "outputKg": "Output (kg)",
+    "linkHint": "Enter the processing batch no. at inbound to link the chain",
+    "qc": "QC"
+  },
+  "docs": {
+    "received": "Document archive (masked copies)",
+    "trackingCode": "Tracking code",
+    "empty": "No documents received"
   },
   "rfq": {
     "title": "Reverse tender (RFQ)",

@@ -16,18 +16,21 @@ export default function BuyerPage({ params }: { params: Promise<{ locale: string
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [rfqs, setRfqs] = useState<RfqRow[]>([]);
+  const [docs, setDocs] = useState<{ trackingCode: string; docType: string; docNo?: string; sentAt: string }[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [rfqForm, setRfqForm] = useState({ categoryCode: "CAVIAR", speciesCode: "", qty: 50, targetPrice: 300, destCountry: "FR", deadline: "" });
 
   const refresh = useCallback(async () => {
-    const [c, o, r] = await Promise.all([
+    const [c, o, r, d] = await Promise.all([
       api<CartItem[]>("GET", "/buyer/cart").catch(() => []),
       api<Order[]>("GET", "/buyer/orders").catch(() => []),
       api<RfqRow[]>("GET", "/buyer/rfqs").catch(() => []),
+      api<typeof docs>("GET", "/documents/received").catch(() => []),
     ]);
     setCart(c);
     setOrders(o);
     setRfqs(r);
+    setDocs(d);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -74,6 +77,22 @@ export default function BuyerPage({ params }: { params: Promise<{ locale: string
           </div>
         )}
       </section>
+
+      {docs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.docs.received}</h2>
+          <div className="card space-y-1.5 text-xs">
+            {docs.map((d) => (
+              <div key={d.trackingCode} className="flex flex-wrap gap-3">
+                <span className="font-medium">{d.docType}</span>
+                {d.docNo && <span style={{ color: "var(--color-muted)" }}>{d.docNo}</span>}
+                <span className="font-mono" style={{ color: "var(--color-muted)" }}>{dict.docs.trackingCode}: {d.trackingCode}</span>
+                <span style={{ color: "var(--color-muted)" }}>{d.sentAt.slice(0, 10)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.rfq.title}</h2>

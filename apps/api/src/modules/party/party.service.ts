@@ -78,6 +78,29 @@ export class PartyService {
     return { publicCode, status };
   }
 
+  /** 本组织联系人（全加密存储；用于平台代理外呼，Broker 不可见明文） */
+  async addContact(
+    input: { name: string; phone?: string; email?: string; position?: string; isPrimary?: boolean },
+    user: JwtPayload,
+  ) {
+    if (!user.orgId) throw new NotFoundException({ code: "NOT_FOUND", detail: "无组织" });
+    if (input.isPrimary) {
+      await this.prisma.contact.updateMany({ where: { orgId: user.orgId, deletedAt: null }, data: { isPrimary: false } });
+    }
+    const contact = await this.prisma.contact.create({
+      data: {
+        orgId: user.orgId,
+        nameEnc: this.crypto.encrypt(input.name),
+        phoneEnc: input.phone ? this.crypto.encrypt(input.phone) : null,
+        emailEnc: input.email ? this.crypto.encrypt(input.email) : null,
+        positionEnc: input.position ? this.crypto.encrypt(input.position) : null,
+        isPrimary: input.isPrimary ?? false,
+        createdBy: user.sub,
+      },
+    });
+    return { contactId: contact.id, isPrimary: contact.isPrimary };
+  }
+
   /** 穿透申请：低敏即时放行（事后抄送），高敏待超管审批 */
   async requestEscalation(publicCode: string, fields: string[], reason: string, actor: JwtPayload) {
     const org = await this.prisma.organization.findFirst({ where: { publicCode, deletedAt: null } });

@@ -18,6 +18,14 @@ class DecideDto {
   @IsIn(["APPROVE", "DENY"]) decision!: "APPROVE" | "DENY";
 }
 
+class ContactDto {
+  @IsString() @MaxLength(50) name!: string;
+  @IsOptional() @IsString() @MaxLength(30) phone?: string;
+  @IsOptional() @IsString() @MaxLength(100) email?: string;
+  @IsOptional() @IsString() @MaxLength(50) position?: string;
+  @IsOptional() isPrimary?: boolean;
+}
+
 @Controller()
 export class PartyController {
   constructor(private readonly party: PartyService) {}
@@ -25,6 +33,11 @@ export class PartyController {
   @Get("party/profile")
   profile(@CurrentUser() user: JwtPayload) {
     return this.party.myProfile(user);
+  }
+
+  @Post("party/contacts")
+  addContact(@Body() dto: ContactDto, @CurrentUser() user: JwtPayload) {
+    return this.party.addContact(dto, user);
   }
 
   @Roles("ADMIN")

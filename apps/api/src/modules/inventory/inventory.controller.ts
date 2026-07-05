@@ -11,6 +11,7 @@ class InboundDto {
   @IsDateString() producedAt!: string;
   @IsDateString() expiresAt!: string;
   @IsOptional() @IsString() @MaxLength(50) warehouse?: string;
+  @IsOptional() @IsString() @MaxLength(50) processingBatchNo?: string;
 }
 
 @Controller("supplier/inventory")

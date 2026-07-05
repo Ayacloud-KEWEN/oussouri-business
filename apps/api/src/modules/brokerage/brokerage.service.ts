@@ -6,6 +6,8 @@ import { StateMachineService } from "../../kernel/state-machine/state-machine.se
 import { AuditService } from "../../kernel/audit/audit.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { CommunicationService } from "../communication/communication.service";
+import { CryptoService } from "../../kernel/crypto/crypto.service";
+import { TelephonyPort } from "./telephony.port";
 import { pickPriceTier } from "../trading/price-tier.util";
 import type { JwtPayload } from "../iam/auth.types";
 
@@ -20,7 +22,93 @@ export class BrokerageService {
     private readonly audit: AuditService,
     private readonly inventory: InventoryService,
     private readonly comm: CommunicationService,
+    private readonly crypto: CryptoService,
+    private readonly telephony: TelephonyPort,
   ) {}
+
+  // ---------- 代理外呼（M14 FR-14-02，P2.5） ----------
+
+  /**
+   * 一键外呼：解密仅发生在服务端内存并直接交给电话适配器，
+   * 响应/日志/DB 均不含明文号码；通话全程留痕。
+   */
+  async startCall(targetOrgCode: string, opportunityCode: string | undefined, user: JwtPayload) {
+    const target = await this.prisma.organization.findFirst({ where: { publicCode: targetOrgCode, deletedAt: null } });
+    if (!target) throw new NotFoundException({ code: "NOT_FOUND", detail: "目标组织不存在" });
+    const contact = await this.prisma.contact.findFirst({
+      where: { orgId: target.id, deletedAt: null, phoneEnc: { not: null } },
+      orderBy: { isPrimary: "desc" },
+    });
+    if (!contact?.phoneEnc) {
+      throw new NotFoundException({ code: "NOT_FOUND", detail: "该组织未登记联系电话" });
+    }
+    let opportunityId: string | undefined;
+    if (opportunityCode) {
+      const opp = await this.prisma.opportunity.findFirst({ where: { publicCode: opportunityCode, deletedAt: null } });
+      opportunityId = opp?.id;
+    }
+    const phone = this.crypto.decrypt(contact.phoneEnc); // 仅此一处，不出函数
+    const result = await this.telephony.createBridgedCall(phone, { opportunityCode: opportunityCode ?? "" });
+
+    const call = await this.prisma.callLog.create({
+      data: {
+        brokerUserId: user.sub,
+        targetOrgId: target.id,
+        opportunityId,
+        providerCallId: result.providerCallId,
+        startedAt: new Date(),
+      },
+    });
+    if (opportunityId) {
+      await this.prisma.opportunityActivity.create({
+        data: { opportunityId, activityType: "CALL", payload: { callId: call.id }, createdBy: user.sub },
+      });
+    }
+    await this.audit.log({
+      actorId: user.sub,
+      actorRole: user.roles.join(","),
+      action: "BROKER_CALL",
+      targetType: "Organization",
+      targetId: target.id,
+      diff: { callId: call.id, opportunityCode },
+    });
+    return { callId: call.id, status: "DIALING" };
+  }
+
+  /** Twilio 状态回调（webhook） */
+  async updateCallStatus(providerCallId: string, callStatus: string, durationSec?: number) {
+    const call = await this.prisma.callLog.findFirst({ where: { providerCallId } });
+    if (!call) return { ok: false };
+    await this.prisma.callLog.update({
+      where: { id: call.id },
+      data: {
+        durationSec: durationSec ?? call.durationSec,
+        outcome: callStatus === "completed" ? "CONNECTED" : callStatus === "no-answer" ? "NO_ANSWER" : callStatus.toUpperCase(),
+        version: { increment: 1 },
+      },
+    });
+    return { ok: true };
+  }
+
+  async listCalls(user: JwtPayload) {
+    const calls = await this.prisma.callLog.findMany({
+      where: { brokerUserId: user.sub },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    const orgs = await this.prisma.organization.findMany({
+      where: { id: { in: [...new Set(calls.map((c) => c.targetOrgId))] } },
+      select: { id: true, publicCode: true },
+    });
+    const orgMap = new Map(orgs.map((o) => [o.id, o.publicCode]));
+    return calls.map((c) => ({
+      callId: c.id,
+      targetOrgCode: orgMap.get(c.targetOrgId),
+      startedAt: c.startedAt,
+      durationSec: c.durationSec,
+      outcome: c.outcome ?? "DIALING",
+    }));
+  }
 
   /** 商机流（按紧迫度排序，双方仅代码） */
   async listOpportunities(status: string | undefined, user: JwtPayload) {

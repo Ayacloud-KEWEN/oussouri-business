@@ -179,7 +179,31 @@
     "buyerCode": "买家代码",
     "unitPrice": "成交单价 EUR",
     "orderCreated": "意向单已生成并通知买家（24 小时锁货）",
-    "empty": "暂无商机，可手动运行撮合"
+    "empty": "暂无商机，可手动运行撮合",
+    "call": "一键外呼",
+    "calls": "通话记录",
+    "callStarted": "外呼已发起（号码对您不可见）",
+    "sendDoc": "脱敏发单",
+    "docSent": "脱敏副本已送达对方档案"
+  },
+  "trace": {
+    "title": "溯源中心",
+    "newUnit": "登记基地",
+    "unitName": "基地名称（仅本组织与平台可见）",
+    "location": "位置",
+    "newBatch": "原料批次",
+    "batchNo": "批次号",
+    "subunit": "池塘/车间",
+    "newProcessing": "加工批次",
+    "rawKg": "原料 (kg)",
+    "outputKg": "成品 (kg)",
+    "linkHint": "入库时填写加工批次号即可关联溯源链",
+    "qc": "质检"
+  },
+  "docs": {
+    "received": "单证档案（脱敏副本）",
+    "trackingCode": "追踪码",
+    "empty": "暂无收到的单证"
   },
   "rfq": {
     "title": "反向招标 (RFQ)",
