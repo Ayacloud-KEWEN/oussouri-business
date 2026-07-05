@@ -43,6 +43,7 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
           <Link href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
           {roles.includes("BUYER") && <Link href={`/${locale}/buyer`}>{dict.nav.buyer}</Link>}
           {roles.includes("SUPPLIER") && <Link href={`/${locale}/supplier`}>{dict.nav.supplier}</Link>}
+          {roles.includes("BROKER") && <Link href={`/${locale}/broker`}>{dict.broker.nav}</Link>}
           {isAdmin && <Link href={`/${locale}/admin`}>{dict.nav.admin}</Link>}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">

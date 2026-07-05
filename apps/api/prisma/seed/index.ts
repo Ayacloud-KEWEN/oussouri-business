@@ -76,6 +76,58 @@ async function seedOrderStateMachine(): Promise<void> {
   }
 }
 
+async function seedP2StateMachines(): Promise<void> {
+  // OPPORTUNITY（M13 FR-13-05）
+  await prisma.stateMachine.upsert({
+    where: { code: "OPPORTUNITY" },
+    create: { code: "OPPORTUNITY", states: ["NEW", "CONTACTED", "NEGOTIATING", "WON", "LOST"] },
+    update: {},
+  });
+  const oppTransitions = [
+    { from: "NEW", to: "CONTACTED", roles: ["BROKER", "ADMIN"] },
+    { from: "CONTACTED", to: "NEGOTIATING", roles: ["BROKER", "ADMIN"] },
+    { from: "NEGOTIATING", to: "WON", roles: ["BROKER", "ADMIN", "SYSTEM"], emits: "OpportunityWon" },
+    { from: "NEW", to: "LOST", roles: ["BROKER", "ADMIN"] },
+    { from: "CONTACTED", to: "LOST", roles: ["BROKER", "ADMIN"] },
+    { from: "NEGOTIATING", to: "LOST", roles: ["BROKER", "ADMIN"] },
+  ];
+  for (const t of oppTransitions) {
+    await prisma.stateTransition.upsert({
+      where: { machineCode_fromState_toState: { machineCode: "OPPORTUNITY", fromState: t.from, toState: t.to } },
+      create: { machineCode: "OPPORTUNITY", fromState: t.from, toState: t.to, allowedRoles: t.roles, emitsEvent: t.emits },
+      update: { allowedRoles: t.roles, emitsEvent: t.emits ?? null },
+    });
+  }
+  // RFQ（M07）
+  await prisma.stateMachine.upsert({
+    where: { code: "RFQ" },
+    create: { code: "RFQ", states: ["OPEN", "QUOTING", "ACCEPTED", "EXPIRED", "CANCELLED"] },
+    update: {},
+  });
+  const rfqTransitions = [
+    { from: "OPEN", to: "QUOTING", roles: ["SUPPLIER", "SYSTEM"] },
+    { from: "OPEN", to: "CANCELLED", roles: ["BUYER", "ADMIN"] },
+    { from: "QUOTING", to: "ACCEPTED", roles: ["BUYER"], emits: "RfqAccepted" },
+    { from: "QUOTING", to: "CANCELLED", roles: ["BUYER", "ADMIN"] },
+    { from: "OPEN", to: "EXPIRED", roles: ["SYSTEM"] },
+    { from: "QUOTING", to: "EXPIRED", roles: ["SYSTEM"] },
+  ];
+  for (const t of rfqTransitions) {
+    await prisma.stateTransition.upsert({
+      where: { machineCode_fromState_toState: { machineCode: "RFQ", fromState: t.from, toState: t.to } },
+      create: { machineCode: "RFQ", fromState: t.from, toState: t.to, allowedRoles: t.roles, emitsEvent: t.emits },
+      update: { allowedRoles: t.roles, emitsEvent: t.emits ?? null },
+    });
+  }
+  for (const code of ["ORDER_PAYMENT_LINK", "OPPORTUNITY_NEW", "RFQ_QUOTED"]) {
+    await prisma.notificationTemplate.upsert({
+      where: { code },
+      create: { code, channels: ["INAPP", "EMAIL"] },
+      update: {},
+    });
+  }
+}
+
 async function seedCategories(): Promise<void> {
   const categories = [
     { code: "CAVIAR", industryTemplate: "STURGEON", sortOrder: 1 },
@@ -214,6 +266,7 @@ async function main(): Promise<void> {
   await seedRoles();
   await seedCodeRules();
   await seedOrderStateMachine();
+  await seedP2StateMachines();
   await seedCategories();
   await seedSpecies();
   await seedGrades();

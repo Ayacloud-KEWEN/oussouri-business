@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 interface SupplierProduct { code: string; name: string; status: string; skuCount: number }
 interface Lot { skuCode: string; lotNo: string; qtyOnHand: string; qtyReserved: string; expiresAt: string; status: string }
 interface Order { code: string; status: string; counterpartyCode: string; grandTotal: string; commission?: string; currency: string }
+interface OpenRfq { code: string; buyerCode?: string; buyerCountry?: string; categoryCode: string; speciesCode?: string; qty: string; targetPrice?: string; deadline: string; alreadyQuoted: boolean }
 
 export default function SupplierPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = use(params);
@@ -14,18 +15,20 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
   const [products, setProducts] = useState<SupplierProduct[]>([]);
   const [lots, setLots] = useState<Lot[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [openRfqs, setOpenRfqs] = useState<OpenRfq[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState({ name: "", categoryCode: "CAVIAR", speciesCode: "DAU", hsCode: "1604310000", originCountry: "CN" });
   const [newSku, setNewSku] = useState({ productCode: "", packSpec: "50g", netWeightKg: 0.05, unitPrice: 320 });
   const [inbound, setInbound] = useState({ skuCode: "", lotNo: "", qty: 100, producedAt: "2026-06-01", expiresAt: "2026-09-01" });
 
   const refresh = useCallback(async () => {
-    const [p, l, o] = await Promise.all([
+    const [p, l, o, r] = await Promise.all([
       api<SupplierProduct[]>("GET", "/supplier/products").catch(() => []),
       api<Lot[]>("GET", "/supplier/inventory/lots").catch(() => []),
       api<Order[]>("GET", "/supplier/orders").catch(() => []),
+      api<OpenRfq[]>("GET", "/supplier/rfqs").catch(() => []),
     ]);
-    setProducts(p); setLots(l); setOrders(o);
+    setProducts(p); setLots(l); setOrders(o); setOpenRfqs(r);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -158,6 +161,37 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
             <button className="btn btn-primary w-full" type="submit">{dict.supplier.inbound}</button>
           </div>
         </form>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.rfq.openRfqs}</h2>
+        {openRfqs.length === 0 && <p className="text-sm" style={{ color: "var(--color-muted)" }}>{dict.rfq.empty}</p>}
+        <div className="space-y-3">
+          {openRfqs.map((r) => (
+            <div key={r.code} className="card flex flex-wrap items-center gap-3 text-sm">
+              <span className="font-mono">{r.code}</span>
+              <span style={{ color: "var(--color-muted)" }}>{dict.rfq.buyer}: {r.buyerCode} ({r.buyerCountry})</span>
+              <span>{r.categoryCode}{r.speciesCode ? ` · ${r.speciesCode}` : ""} · {r.qty} kg</span>
+              {r.targetPrice && <span style={{ color: "var(--color-muted)" }}>{dict.rfq.targetPrice}: €{r.targetPrice}</span>}
+              <span style={{ color: "var(--color-muted)" }}>{dict.rfq.deadline}: {r.deadline.slice(0, 10)}</span>
+              {r.alreadyQuoted ? (
+                <span className="badge ml-auto">{dict.rfq.quoted}</span>
+              ) : (
+                <form
+                  className="ml-auto flex items-end gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = (e.currentTarget.elements.namedItem("price") as HTMLInputElement).value;
+                    void act(() => api("POST", `/supplier/rfqs/${r.code}/quotes`, { unitPrice: Number(input), leadTimeDays: 14 }));
+                  }}
+                >
+                  <input className="input w-28" name="price" type="number" step="0.01" placeholder={dict.rfq.unitPrice} required />
+                  <button className="btn btn-primary" type="submit">{dict.rfq.quote}</button>
+                </form>
+              )}
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-3">

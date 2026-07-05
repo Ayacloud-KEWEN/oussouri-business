@@ -5,6 +5,8 @@ import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
 
 interface CartItem { skuCode: string; packSpec: string; qty: string }
+interface RfqQuote { id: string; supplierCode?: string; unitPrice: string; leadTimeDays?: number; validUntil: string; status: string }
+interface RfqRow { code: string; categoryCode: string; speciesCode?: string; qty: string; targetPrice?: string; deadline: string; status: string; quotes: RfqQuote[] }
 interface OrderItem { qty: string; unitPrice: string; lineTotal: string; snapshot: { productName: string; skuCode: string } }
 interface Order { code: string; status: string; counterpartyCode: string; currency: string; grandTotal: string; items: OrderItem[] }
 
@@ -13,15 +15,19 @@ export default function BuyerPage({ params }: { params: Promise<{ locale: string
   const dict = getDictionary(locale);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [rfqs, setRfqs] = useState<RfqRow[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [rfqForm, setRfqForm] = useState({ categoryCode: "CAVIAR", speciesCode: "", qty: 50, targetPrice: 300, destCountry: "FR", deadline: "" });
 
   const refresh = useCallback(async () => {
-    const [c, o] = await Promise.all([
+    const [c, o, r] = await Promise.all([
       api<CartItem[]>("GET", "/buyer/cart").catch(() => []),
       api<Order[]>("GET", "/buyer/orders").catch(() => []),
+      api<RfqRow[]>("GET", "/buyer/rfqs").catch(() => []),
     ]);
     setCart(c);
     setOrders(o);
+    setRfqs(r);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -67,6 +73,70 @@ export default function BuyerPage({ params }: { params: Promise<{ locale: string
             <button className="btn btn-primary" onClick={placeOrder}>{dict.buyer.placeOrder}</button>
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.rfq.title}</h2>
+        <form
+          className="card grid gap-3 md:grid-cols-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void act(() => api("POST", "/buyer/rfqs", { ...rfqForm, speciesCode: rfqForm.speciesCode || undefined, deadline: rfqForm.deadline || new Date(Date.now() + 14 * 86400000).toISOString() }));
+          }}
+        >
+          <div>
+            <label className="label">{dict.rfq.category}</label>
+            <input className="input" value={rfqForm.categoryCode} onChange={(e) => setRfqForm({ ...rfqForm, categoryCode: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">{dict.rfq.species}</label>
+            <input className="input" value={rfqForm.speciesCode} onChange={(e) => setRfqForm({ ...rfqForm, speciesCode: e.target.value })} placeholder="SCHDAU" />
+          </div>
+          <div>
+            <label className="label">{dict.rfq.qty}</label>
+            <input className="input" type="number" value={rfqForm.qty} onChange={(e) => setRfqForm({ ...rfqForm, qty: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="label">{dict.rfq.targetPrice}</label>
+            <input className="input" type="number" value={rfqForm.targetPrice} onChange={(e) => setRfqForm({ ...rfqForm, targetPrice: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="label">{dict.rfq.destCountry}</label>
+            <input className="input" value={rfqForm.destCountry} onChange={(e) => setRfqForm({ ...rfqForm, destCountry: e.target.value.toUpperCase() })} maxLength={2} />
+          </div>
+          <div className="flex items-end">
+            <button className="btn btn-primary w-full" type="submit">{dict.rfq.publish}</button>
+          </div>
+        </form>
+        <div className="space-y-3">
+          {rfqs.map((r) => (
+            <div key={r.code} className="card space-y-2 text-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono">{r.code}</span>
+                <span className="badge">{r.status}</span>
+                <span>{r.categoryCode}{r.speciesCode ? ` · ${r.speciesCode}` : ""} · {r.qty} kg</span>
+                <span style={{ color: "var(--color-muted)" }}>{dict.rfq.deadline}: {r.deadline.slice(0, 10)}</span>
+              </div>
+              {r.quotes.length > 0 && (
+                <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
+                  {r.quotes.map((q) => (
+                    <div key={q.id} className="flex flex-wrap items-center gap-3 text-xs">
+                      <span className="font-mono">{q.supplierCode}</span>
+                      <span className="font-medium">€{q.unitPrice}/kg</span>
+                      {q.leadTimeDays != null && <span style={{ color: "var(--color-muted)" }}>{dict.rfq.leadTime}: {q.leadTimeDays}</span>}
+                      <span className="badge">{q.status}</span>
+                      {q.status === "SUBMITTED" && r.status !== "ACCEPTED" && (
+                        <button className="btn btn-primary ml-auto" onClick={() => act(() => api("POST", `/buyer/quotes/${q.id}/accept`, {}))}>
+                          {dict.rfq.accept}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-3">
