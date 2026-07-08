@@ -31,22 +31,22 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
 
   return (
     <header className="border-b" style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}>
-      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-        <Link href={`/${locale}`} className="text-lg font-semibold tracking-wide" style={{ color: "var(--color-accent)" }}>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+        <Link href={`/${locale}`} className="whitespace-nowrap text-base font-semibold tracking-wide md:text-lg" style={{ color: "var(--color-accent)" }}>
           {dict.brand}
         </Link>
-        <nav className="hidden items-center gap-4 text-sm md:flex">
-          <Link href={`/${locale}#insights`}>{dict.portal.navInsights}</Link>
+        <nav className="hidden items-center gap-4 whitespace-nowrap text-sm md:flex [&>a]:whitespace-nowrap">
+          <Link className="hidden lg:inline" href={`/${locale}#insights`}>{dict.portal.navInsights}</Link>
           <Link href={`/${locale}/market`}>{dict.portal.navMarketplace}</Link>
           <Link href={`/${locale}#rfq`}>{dict.portal.navRfq}</Link>
-          <Link href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
-          <Link href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
+          <Link className="hidden lg:inline" href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
+          <Link className="hidden lg:inline" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
           {roles.includes("BUYER") && <Link href={`/${locale}/buyer`}>{dict.nav.buyer}</Link>}
           {roles.includes("SUPPLIER") && <Link href={`/${locale}/supplier`}>{dict.nav.supplier}</Link>}
           {roles.includes("BROKER") && <Link href={`/${locale}/broker`}>{dict.broker.nav}</Link>}
           {isAdmin && <Link href={`/${locale}/admin`}>{dict.nav.admin}</Link>}
         </nav>
-        <div className="ml-auto flex items-center gap-3 text-sm">
+        <div className="ml-auto flex items-center gap-3 whitespace-nowrap text-sm">
           <span className="flex gap-1 rounded-md border px-1 py-0.5" style={{ borderColor: "var(--color-border)" }}>
             {LOCALES.map((l) => (
               <Link
@@ -63,7 +63,7 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
             <>
               {session.orgCode && <span className="badge">{session.orgCode}</span>}
               <button
-                className="btn btn-outline"
+                className="btn btn-outline whitespace-nowrap"
                 onClick={() => {
                   clearSession();
                   router.push(`/${locale}`);
@@ -74,8 +74,8 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
             </>
           ) : (
             <>
-              <Link className="btn btn-outline" href={`/${locale}/login`}>{dict.nav.login}</Link>
-              <Link className="btn btn-primary" href={`/${locale}/register`}>{dict.nav.register}</Link>
+              <Link className="btn btn-outline whitespace-nowrap" href={`/${locale}/login`}>{dict.nav.login}</Link>
+              <Link className="btn btn-primary whitespace-nowrap" href={`/${locale}/register`}>{dict.nav.register}</Link>
             </>
           )}
         </div>

@@ -104,14 +104,14 @@ docker compose -f infra/docker-compose.cloudpanel.yml exec api pnpm prisma:seed
 # 计算注册邮箱的盲索引（在 VPS 上执行，替换邮箱与 .env.production 中的 PII_BLIND_INDEX_KEY）
 docker compose -f infra/docker-compose.cloudpanel.yml exec api node -e "
 const {createHmac}=require('crypto');
-console.log(createHmac('sha256', Buffer.from(process.env.PII_BLIND_INDEX_KEY,'hex')).update('你的邮箱@example.com'.trim().toLowerCase()).digest('hex'));"
+console.log(createHmac('sha256', Buffer.from(process.env.PII_BLIND_INDEX_KEY,'hex')).update('wenke2012@gmail.com'.trim().toLowerCase()).digest('hex'));"
 
 # 用上一步输出替换 <BIDX>，赋 超管+管理员+财务：
 docker compose -f infra/docker-compose.cloudpanel.yml exec postgres psql -U oussouri -d oussouri -c "
 INSERT INTO core.user_roles (id, \"userId\", \"roleId\", \"createdAt\", version)
 SELECT gen_random_uuid(), u.id, r.id, now(), 0
 FROM core.users u, core.roles r
-WHERE u.\"emailBidx\"='<BIDX>' AND r.code IN ('ADMIN','SUPER_ADMIN','FINANCE','BROKER','CUSTOMS_OFFICER','QUALITY_INSPECTOR')
+WHERE u.\"emailBidx\"='b8387262dd788f436e2a854926e3a9064465f49314a634d98470b7ce2175d993' AND r.code IN ('ADMIN','SUPER_ADMIN','FINANCE','BROKER','CUSTOMS_OFFICER','QUALITY_INSPECTOR')
 ON CONFLICT DO NOTHING;"
 ```
 

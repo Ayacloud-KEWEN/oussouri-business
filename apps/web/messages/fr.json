@@ -1,13 +1,13 @@
 {
   "brand": "Oussouri Caviar HUB",
   "tagline": "Système d'exploitation mondial du négoce alimentaire haut de gamme",
-  "nav": { "market": "Marché", "buyer": "Espace acheteur", "supplier": "Espace fournisseur", "admin": "Administration", "login": "Connexion", "register": "Inscription", "logout": "Déconnexion" },
+  "nav": { "market": "Marché", "buyer": "Acheteur", "supplier": "Fournisseur", "admin": "Admin", "login": "Connexion", "register": "Inscription", "logout": "Déconnexion" },
   "portal": {
     "navHome": "Accueil",
-    "navInsights": "Cours du marché",
-    "navInfo": "Espace info",
+    "navInsights": "Tendances",
+    "navInfo": "Infos",
     "navMarketplace": "Marketplace",
-    "navRfq": "Appels d'offres",
+    "navRfq": "RFQ",
     "navOrigins": "Origines",
     "navBuyers": "Acheteurs",
     "heroTitle1": "Relier les fermes de caviar chinoises",

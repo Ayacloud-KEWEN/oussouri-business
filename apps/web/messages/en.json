@@ -4,10 +4,10 @@
   "nav": { "market": "Market", "buyer": "Buyer desk", "supplier": "Supplier desk", "admin": "Admin", "login": "Log in", "register": "Register", "logout": "Log out" },
   "portal": {
     "navHome": "Home",
-    "navInsights": "Market insights",
+    "navInsights": "Insights",
     "navInfo": "Info hub",
     "navMarketplace": "Marketplace",
-    "navRfq": "RFQ hall",
+    "navRfq": "RFQ",
     "navOrigins": "Origins",
     "navBuyers": "Buyers",
     "heroTitle1": "Connecting China's caviar farms",
