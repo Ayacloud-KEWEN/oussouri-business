@@ -242,5 +242,40 @@
     "complete": "Complet — prêt à expédier",
     "shipmentRegistered": "Expédition enregistrée"
   },
+  "help": {
+    "nav": "Guide",
+    "title": "Comment fonctionne la plateforme",
+    "subtitle": "Trois minutes pour comprendre comment Oussouri Caviar HUB relie les fermes chinoises aux acheteurs européens",
+    "buyerTitle": "Je suis acheteur (Europe)",
+    "buyerSteps": [
+      { "t": "S'inscrire et être validé", "d": "Cliquez sur Inscription, choisissez votre profil (importateur, grossiste, restaurant…). Après validation par la plateforme vous pouvez négocier — vos informations réelles restent confidentielles." },
+      { "t": "Parcourir et tracer", "d": "Filtrez la marketplace par espèce et grade. Connectez-vous pour voir les prix de gros par palier ; chaque produit expose une chaîne de traçabilité anonymisée (espèce, âge, étapes, rendement)." },
+      { "t": "Trois façons d'acheter", "d": "1) Commande directe via le panier ; 2) Publier un RFQ et accepter la meilleure offre en un clic ; 3) Laisser notre courtier vous proposer des sources adaptées." },
+      { "t": "Paiement sous séquestre", "d": "Votre paiement est placé en escrow, jamais versé directement au fournisseur. Suivez la logistique frigorifique multi-étapes et la douane ; toute rupture de température vous est notifiée." },
+      { "t": "Fonds libérés à la livraison", "d": "Le fournisseur n'est payé qu'après votre confirmation de livraison. En cas de litige dans le délai imparti, les fonds restent gelés jusqu'à l'arbitrage." }
+    ],
+    "supplierTitle": "Je suis fournisseur (ferme / transformateur en Chine)",
+    "supplierSteps": [
+      { "t": "S'inscrire avec ses agréments", "d": "Inscrivez-vous comme fournisseur et soumettez licence commerciale, certificat SC et qualification CITES pour validation." },
+      { "t": "Saisir la traçabilité", "d": "Dans votre espace, enregistrez sites d'élevage, lots d'origine et lots de transformation (avec contrôle qualité). Les noms de sites sont chiffrés et jamais montrés aux acheteurs." },
+      { "t": "Mettre en vente", "d": "Créez produits et références (boîtes 50g/100g…), fixez les prix par palier et soumettez à validation. Liez le stock à un lot de transformation pour compléter la chaîne." },
+      { "t": "Exécuter les commandes", "d": "Acceptez les commandes payées. Avant expédition : enregistrer le transport et réunir les 7 documents export (facture, CITES, origine, colisage, LTA, sanitaire, vétérinaire) — sinon le système bloque." },
+      { "t": "Règlement automatique", "d": "Après confirmation de livraison et délai de litige, les fonds vous sont réglés automatiquement (moins la commission). Vous ne voyez que les codes plateforme des acheteurs." }
+    ],
+    "rulesTitle": "Règles de la plateforme (à lire)",
+    "rules": [
+      { "t": "Pare-feu d'identité", "d": "Les contreparties ne voient que des codes plateforme (SP-000018 / BY-000256). N'échangez ni téléphone, ni e-mail, ni WeChat dans le chat — blocage automatique, 3 infractions gèlent la conversation." },
+      { "t": "Canaux plateforme uniquement", "d": "Messagerie interne ; documents transmis en copies anonymisées et tracées ; appels pontés par la plateforme (numéros masqués). Les transactions hors plateforme ne sont pas protégées." },
+      { "t": "Sécurité des fonds", "d": "Les paiements sont détenus par un prestataire agréé. Pas de versement avant confirmation de livraison, pas d'expédition sans dossier documentaire complet." }
+    ],
+    "faqTitle": "FAQ",
+    "faq": [
+      { "q": "Délai de validation ?", "a": "En général sous 24 h ouvrées. Un dossier complet accélère la validation." },
+      { "q": "Comment les prix sont-ils fixés ?", "a": "Prix de gros par palier fixés par le fournisseur ; négociables en RFQ et courtage, le prix final est figé dans la commande." },
+      { "q": "Comment contacter la plateforme ?", "a": "Ouvrez une conversation support via la messagerie interne ; un courtier vous répond. Urgences : contact@oussouri.fr." },
+      { "q": "Langues et devises ?", "a": "Interface en chinois, anglais et français ; règlement principalement en EUR, taux de change figé à la commande." }
+    ],
+    "cta": "S'inscrire et commencer"
+  },
   "common": { "status": "Statut", "actions": "Actions", "amount": "Montant", "loading": "Chargement…", "error": "Une erreur est survenue", "success": "Terminé" }
 }

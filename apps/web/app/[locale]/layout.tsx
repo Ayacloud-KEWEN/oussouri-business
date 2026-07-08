@@ -26,8 +26,9 @@ export default async function LocaleLayout({
       <body className="min-h-screen antialiased">
         <Header locale={locale} dict={dict} />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
-        <footer className="mx-auto max-w-6xl px-4 py-10 text-xs" style={{ color: "var(--color-muted)" }}>
-          © 2026 {dict.brand} · oussouri.fr / oussouri.com
+        <footer className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-10 text-xs" style={{ color: "var(--color-muted)" }}>
+          <span>© 2026 {dict.brand} · oussouri.fr / oussouri.com</span>
+          <a href={`/${locale}/help`} style={{ color: "var(--color-accent)" }}>{dict.help.nav}</a>
         </footer>
       </body>
     </html>

@@ -242,5 +242,40 @@
     "complete": "Complete — ready to ship",
     "shipmentRegistered": "Shipment registered"
   },
+  "help": {
+    "nav": "User guide",
+    "title": "How the platform works",
+    "subtitle": "Three minutes to understand how Oussouri Caviar HUB connects Chinese farms with European buyers",
+    "buyerTitle": "I am a buyer (Europe)",
+    "buyerSteps": [
+      { "t": "Register and get approved", "d": "Click Register, choose your buyer type (importer, wholesaler, restaurant…). Once the platform approves your account you can trade — your real company details stay with the platform only." },
+      { "t": "Browse and trace", "d": "Filter the marketplace by species and grade. Log in to see tiered wholesale prices; every product exposes an anonymized traceability chain (species, fish age, processing steps, yield)." },
+      { "t": "Three ways to buy", "d": "1) Order directly from the cart; 2) Post an RFQ and accept the best quote in one click; 3) Let our broker match you — they will reach out with sourcing proposals." },
+      { "t": "Pay into escrow", "d": "Your payment goes into the platform escrow account, never straight to the supplier. Track multi-leg cold-chain logistics and customs; you are alerted automatically if the temperature breaches limits." },
+      { "t": "Funds released on delivery", "d": "The supplier is paid only after you confirm delivery. Quality issue? Open a dispute within the dispute window and funds stay frozen until the platform rules." }
+    ],
+    "supplierTitle": "I am a supplier (Chinese farm / processor)",
+    "supplierSteps": [
+      { "t": "Register with credentials", "d": "Register as a supplier and submit your business licence, SC certificate and CITES qualification for review." },
+      { "t": "Record traceability", "d": "In the supplier desk, register farms, source batches and processing batches (with QC). Farm names are stored encrypted and never shown to buyers." },
+      { "t": "List products", "d": "Create products and SKUs (50g/100g tins…), set tiered prices and submit for review. Link inventory to a processing batch to complete the chain." },
+      { "t": "Fulfil orders", "d": "Confirm paid orders. Before shipping you must register the shipment and complete all 7 export documents (invoice, CITES, origin, packing list, AWB, sanitary, health) — the system blocks shipping otherwise." },
+      { "t": "Automatic settlement", "d": "After delivery confirmation and the dispute window, escrow funds are settled to you automatically (minus platform commission). You only ever see buyer platform codes." }
+    ],
+    "rulesTitle": "Platform rules (please read)",
+    "rules": [
+      { "t": "Identity firewall", "d": "Counterparties only ever see platform codes (SP-000018 / BY-000256). Do not exchange phones, emails or WeChat in chat — messages are blocked automatically and 3 violations freeze the conversation." },
+      { "t": "Platform channels only", "d": "Chat via in-platform messaging; documents are forwarded as masked, tracked copies; calls are bridged by the platform (numbers hidden on both sides). Deals made off-platform are not escrow-protected." },
+      { "t": "Funds safety", "d": "All payments are held by a licensed payment provider. Suppliers are not paid before delivery confirmation, and goods cannot ship without complete documents." }
+    ],
+    "faqTitle": "FAQ",
+    "faq": [
+      { "q": "How long does approval take?", "a": "Usually within 24 hours on business days. Complete credentials speed things up." },
+      { "q": "How are prices set?", "a": "Suppliers set tiered wholesale prices (better price at volume); RFQ and brokered deals are negotiable and the final price is frozen in the order snapshot." },
+      { "q": "How do I contact the platform?", "a": "Open a support conversation via in-platform messaging; a broker will follow up. For urgent matters email contact@oussouri.fr." },
+      { "q": "Languages and currencies?", "a": "Interface in Chinese, English and French; settlement primarily in EUR with the FX rate locked at order time." }
+    ],
+    "cta": "Register and start trading"
+  },
   "common": { "status": "Status", "actions": "Actions", "amount": "Amount", "loading": "Loading…", "error": "Something went wrong", "success": "Done" }
 }

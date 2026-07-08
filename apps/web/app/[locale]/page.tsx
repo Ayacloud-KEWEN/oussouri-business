@@ -60,6 +60,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <Link href={`/${locale}/register`} className="btn" style={{ border: `1px solid ${C.border}`, color: C.text }}>
                 {t.ctaRfq}
               </Link>
+              <Link href={`/${locale}/help`} className="btn" style={{ border: `1px solid ${C.border}`, color: C.gold }}>
+                {dict.help.nav} ›
+              </Link>
             </div>
           </div>
           <div className="rounded-lg border p-4" style={{ background: C.panel, borderColor: C.border }}>

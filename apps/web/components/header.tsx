@@ -41,6 +41,7 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
           <Link href={`/${locale}#rfq`}>{dict.portal.navRfq}</Link>
           <Link className="hidden lg:inline" href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
           <Link className="hidden lg:inline" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
+          <Link href={`/${locale}/help`}>{dict.help.nav}</Link>
           {roles.includes("BUYER") && <Link href={`/${locale}/buyer`}>{dict.nav.buyer}</Link>}
           {roles.includes("SUPPLIER") && <Link href={`/${locale}/supplier`}>{dict.nav.supplier}</Link>}
           {roles.includes("BROKER") && <Link href={`/${locale}/broker`}>{dict.broker.nav}</Link>}
