@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getDictionary, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { serverApi } from "@/lib/server-api";
 import { BUYER_DEMANDS, MARKET_INSIGHTS, ORIGINS, PLATFORM_STATS, RFQ_LIST, type LocalizedName } from "@/lib/portal-data";
+import { ChinaMap, ORIGIN_PINS } from "@/components/china-map";
 
 interface LiveInsightRow { species: string; spec: string; origin: string; avgPriceEur: number; trend: number; listings: number }
 interface LiveInsights { updatedAt: string; live: boolean; rows: LiveInsightRow[] }
@@ -148,6 +149,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {t.originsTitle} <span className="ml-1 text-[10px] tracking-widest" style={{ color: C.muted }}>{t.originsTitleEn}</span>
               </h2>
               <span className="text-xs" style={{ color: C.gold }}>{t.moreOrigins} ›</span>
+            </div>
+            <div className="mb-3 rounded-md border p-2" style={{ borderColor: C.border, background: C.panelSoft }}>
+              <ChinaMap
+                pins={ORIGINS.map((o, i) => ({ ...ORIGIN_PINS[i]!, label: ln(o.name, locale) }))}
+                colors={{ fill: "#13263f", stroke: C.border, pin: C.gold, text: C.muted }}
+              />
             </div>
             <div className="space-y-3">
               {ORIGINS.map((o) => (

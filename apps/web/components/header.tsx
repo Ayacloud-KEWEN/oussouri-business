@@ -13,6 +13,11 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSessionState] = useState<SessionInfo | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false); // 路由变化自动收起手机菜单
+  }, [pathname]);
 
   useEffect(() => {
     const sync = () => setSessionState(getSession());
@@ -32,6 +37,14 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
   return (
     <header className="border-b" style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}>
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+        <button
+          className="btn btn-outline px-2.5 md:hidden"
+          aria-label="Menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? "✕" : "☰"}
+        </button>
         <Link href={`/${locale}`} className="whitespace-nowrap text-base font-semibold tracking-wide md:text-lg" style={{ color: "var(--color-accent)" }}>
           {dict.brand}
         </Link>
@@ -81,6 +94,23 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
           )}
         </div>
       </div>
+      {menuOpen && (
+        <nav
+          className="flex flex-col gap-1 border-t px-4 py-3 text-sm md:hidden"
+          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+        >
+          <Link className="py-1.5" href={`/${locale}#insights`}>{dict.portal.navInsights}</Link>
+          <Link className="py-1.5" href={`/${locale}/market`}>{dict.portal.navMarketplace}</Link>
+          <Link className="py-1.5" href={`/${locale}#rfq`}>{dict.portal.navRfq}</Link>
+          <Link className="py-1.5" href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
+          <Link className="py-1.5" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
+          <Link className="py-1.5" href={`/${locale}/help`}>{dict.help.nav}</Link>
+          {roles.includes("BUYER") && <Link className="py-1.5" href={`/${locale}/buyer`} style={{ color: "var(--color-accent)" }}>{dict.nav.buyer}</Link>}
+          {roles.includes("SUPPLIER") && <Link className="py-1.5" href={`/${locale}/supplier`} style={{ color: "var(--color-accent)" }}>{dict.nav.supplier}</Link>}
+          {roles.includes("BROKER") && <Link className="py-1.5" href={`/${locale}/broker`} style={{ color: "var(--color-accent)" }}>{dict.broker.nav}</Link>}
+          {isAdmin && <Link className="py-1.5" href={`/${locale}/admin`} style={{ color: "var(--color-accent)" }}>{dict.nav.admin}</Link>}
+        </nav>
+      )}
     </header>
   );
 }
