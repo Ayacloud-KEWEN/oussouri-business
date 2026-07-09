@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getDictionary, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { serverApi } from "@/lib/server-api";
 import { BUYER_DEMANDS, MARKET_INSIGHTS, ORIGINS, PLATFORM_STATS, RFQ_LIST, type LocalizedName } from "@/lib/portal-data";
+
+interface LiveInsightRow { species: string; spec: string; origin: string; avgPriceEur: number; trend: number; listings: number }
+interface LiveInsights { updatedAt: string; live: boolean; rows: LiveInsightRow[] }
 
 const C = {
   bg: "#0a1628",
@@ -23,6 +27,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const locale: Locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const dict = getDictionary(locale);
   const t = dict.portal;
+
+  // 平台真实行情（M21 前哨：在售均价 + 周环比趋势）；空库回退演示数据并标注
+  const liveInsights = await serverApi<LiveInsights>("/market/insights");
+  const useLive = Boolean(liveInsights?.live && liveInsights.rows.length > 0);
+  const insightRows = useLive
+    ? liveInsights!.rows.map((r) => ({
+        species: r.species,
+        spec: r.spec,
+        origin: r.origin as string | LocalizedName,
+        price: r.avgPriceEur.toLocaleString("en-US"),
+        trend: r.trend,
+      }))
+    : MARKET_INSIGHTS.rows;
+  const insightsUpdatedAt = useLive ? liveInsights!.updatedAt.slice(0, 10) : MARKET_INSIGHTS.updatedAt;
   const statSubs: Record<string, string> = {
     statFarms: t.statFarmsSub, statBuyers: t.statBuyersSub, statProducts: t.statProductsSub,
     statDeals: t.statDealsSub, statCountries: t.statCountriesSub,
@@ -70,7 +88,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <h2 className="font-medium">
                 {t.insightsTitle} <span className="ml-1 text-[10px] tracking-widest" style={{ color: C.muted }}>{t.insightsTitleEn}</span>
               </h2>
-              <Link href={`/${locale}/market`} className="text-xs" style={{ color: C.gold }}>{t.more} ›</Link>
+              <span className="flex items-center gap-2">
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px]"
+                  style={useLive ? { background: "#1d3a2a", color: C.up } : { background: "#2a3348", color: C.muted }}
+                >
+                  {useLive ? `● ${t.liveData}` : t.demoData}
+                </span>
+                <Link href={`/${locale}/market`} className="text-xs" style={{ color: C.gold }}>{t.more} ›</Link>
+              </span>
             </div>
             <table className="w-full text-xs">
               <thead>
@@ -83,7 +109,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 </tr>
               </thead>
               <tbody>
-                {MARKET_INSIGHTS.rows.map((r) => (
+                {insightRows.map((r) => (
                   <tr key={r.species} className="border-t" style={{ borderColor: C.border }}>
                     <td className="py-2 font-medium">{r.species}</td>
                     <td className="py-2" style={{ color: C.muted }}>{r.spec}</td>
@@ -97,7 +123,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </tbody>
             </table>
             <p className="mt-3 border-t pt-2 text-[11px]" style={{ borderColor: C.border, color: C.muted }}>
-              {t.updatedAt} {MARKET_INSIGHTS.updatedAt}
+              {t.updatedAt} {insightsUpdatedAt}
             </p>
           </div>
         </section>

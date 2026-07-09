@@ -34,6 +34,8 @@
     "colPrice": "Weekly avg (€/kg)",
     "colTrend": "Trend",
     "updatedAt": "Data updated",
+    "liveData": "Live platform data",
+    "demoData": "Sample data",
     "more": "More",
     "viewDetail": "Details",
     "originsTitle": "Caviar origins in China",
@@ -146,6 +148,8 @@
     "inventory": "Inventory",
     "inbound": "Inbound",
     "lotNo": "Lot no.",
+    "uploadPhoto": "Upload product photo",
+    "photoUploaded": "Photo uploaded",
     "orders": "Order fulfilment",
     "confirm": "Confirm",
     "ship": "Ship",
@@ -241,6 +245,25 @@
     "missing": "Missing",
     "complete": "Complete — ready to ship",
     "shipmentRegistered": "Shipment registered"
+  },
+  "gdpr": {
+    "banner": "We use essential cookies only, to secure login and trading. No advertising trackers. By continuing you agree.",
+    "accept": "Accept and continue",
+    "learnMore": "Privacy policy"
+  },
+  "privacy": {
+    "nav": "Privacy",
+    "title": "Privacy policy and data protection notice",
+    "updated": "Last updated: July 2026",
+    "sections": [
+      { "t": "Data controller", "d": "This platform is operated by Oussouri Caviar HUB (oussouri.fr / oussouri.com), established in France, EU. For data protection requests contact contact@oussouri.fr." },
+      { "t": "What we collect", "d": "Account data (email, display name, company details and contacts stored encrypted), trading data (orders, quotes, document metadata) and technical data (login IP, audit logs). We do not build browsing profiles unrelated to trading." },
+      { "t": "Purposes and legal bases", "d": "Contract performance (matchmaking and trade fulfilment), legal obligations (export compliance, CITES, tax and AML records) and legitimate interest (anti-circumvention risk control and security auditing)." },
+      { "t": "How data is protected", "d": "Identities and contact details are stored with AES-256 column-level encryption; counterparties only ever see platform codes; staff access to real identities requires a per-case request with a full audit trail copied to the super administrator." },
+      { "t": "Retention and sharing", "d": "Trade and compliance records are retained as required by EU and export regulations (typically 10 years); data is hosted in the EU (OVH France). We never sell your data; it is shared only with our licensed payment provider (Stripe) and the logistics/customs parties strictly needed for fulfilment." },
+      { "t": "Your rights", "d": "You may access, rectify and export your data, or request erasure (trade records are anonymized rather than deleted where retention is legally required). Send requests to contact@oussouri.fr; we respond within 30 days." },
+      { "t": "Cookies", "d": "We only use strictly necessary cookies / local storage (login session, language preference, consent state). No advertising or cross-site tracking cookies." }
+    ]
   },
   "help": {
     "nav": "User guide",

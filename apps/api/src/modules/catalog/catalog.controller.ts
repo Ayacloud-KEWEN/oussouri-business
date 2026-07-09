@@ -36,6 +36,10 @@ class CreateSkuDto {
   @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => PriceTierDto) priceTiers!: PriceTierDto[];
 }
 
+class MediaDto {
+  @IsString() @MaxLength(100) key!: string;
+}
+
 class ReviewDto {
   @IsIn(["APPROVE", "REJECT"]) decision!: "APPROVE" | "REJECT";
   @IsOptional() @IsString() @MaxLength(500) reasons?: string;
@@ -83,6 +87,12 @@ export class CatalogController {
   @Post("supplier/products/:code/skus")
   addSku(@Param("code") code: string, @Body() dto: CreateSkuDto, @CurrentUser() user: JwtPayload) {
     return this.catalog.addSku(code, dto, user);
+  }
+
+  @Roles("SUPPLIER")
+  @Post("supplier/products/:code/media")
+  addMedia(@Param("code") code: string, @Body() dto: MediaDto, @CurrentUser() user: JwtPayload) {
+    return this.catalog.addMedia(code, dto.key, user);
   }
 
   @Roles("SUPPLIER")

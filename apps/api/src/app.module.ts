@@ -18,6 +18,7 @@ import { CommunicationModule } from "./modules/communication/communication.modul
 import { BrokerageModule } from "./modules/brokerage/brokerage.module";
 import { FulfillmentModule } from "./modules/fulfillment/fulfillment.module";
 import { TraceabilityModule } from "./modules/traceability/traceability.module";
+import { FilesModule } from "./modules/files/files.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { TraceabilityModule } from "./modules/traceability/traceability.module";
     BrokerageModule,
     FulfillmentModule,
     TraceabilityModule,
+    FilesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

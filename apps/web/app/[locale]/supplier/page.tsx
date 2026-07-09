@@ -198,11 +198,11 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const act = async (fn: () => Promise<unknown>) => {
+  const act = async (fn: () => Promise<unknown>, successMsg?: string) => {
     setMessage(null);
     try {
       await fn();
-      setMessage(dict.common.success);
+      setMessage(successMsg ?? dict.common.success);
       await refresh();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : dict.common.error);
@@ -218,11 +218,37 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.supplier.products}</h2>
         <div className="card space-y-2">
           {products.map((p) => (
-            <div key={p.code} className="flex items-center gap-3 text-sm">
+            <div key={p.code} className="flex flex-wrap items-center gap-3 text-sm">
               <span className="font-mono">{p.code}</span>
               <span>{p.name}</span>
               <span className="badge">{p.status}</span>
               <span style={{ color: "var(--color-muted)" }}>SKU × {p.skuCount}</span>
+              <label className="btn btn-outline cursor-pointer">
+                {dict.supplier.uploadPhoto}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    void act(async () => {
+                      const form = new FormData();
+                      form.append("file", file);
+                      const token = window.localStorage.getItem("oussouri.accessToken");
+                      const res = await fetch("/api/v1/files/upload", {
+                        method: "POST",
+                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                        body: form,
+                      });
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json?.detail ?? "upload failed");
+                      await api("POST", `/supplier/products/${p.code}/media`, { key: json.key });
+                    }, dict.supplier.photoUploaded);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
               {p.status === "DRAFT" && p.skuCount > 0 && (
                 <button className="btn btn-outline ml-auto" onClick={() => act(() => api("POST", `/supplier/products/${p.code}/submit`, {}))}>
                   {dict.supplier.submitReview}

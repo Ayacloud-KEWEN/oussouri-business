@@ -10,6 +10,7 @@ interface PublicSku {
 }
 interface PublicProduct {
   code: string;
+  image: string | null;
   name: string;
   category: string;
   species: string | null;
@@ -34,13 +35,18 @@ export default async function MarketPage({ params }: { params: Promise<{ locale:
           const firstTier = Array.isArray(p.skus[0]?.priceTiers) ? p.skus[0].priceTiers[0] : null;
           return (
             <Link key={p.code} href={`/${locale}/market/${p.code}`} className="card block space-y-3 transition-shadow hover:shadow-md">
-              <div
-                className="flex h-36 items-center justify-center rounded-md text-4xl"
-                style={{ background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
-                aria-hidden
-              >
-                ◉
-              </div>
+              {p.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.image} alt={p.name} className="h-36 w-full rounded-md object-cover" />
+              ) : (
+                <div
+                  className="flex h-36 items-center justify-center rounded-md text-4xl"
+                  style={{ background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
+                  aria-hidden
+                >
+                  ◉
+                </div>
+              )}
               <div className="space-y-1">
                 <h2 className="font-medium leading-snug">{p.name}</h2>
                 <p className="text-xs" style={{ color: "var(--color-muted)" }}>

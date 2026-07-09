@@ -34,6 +34,8 @@
     "colPrice": "Prix moyen (€/kg)",
     "colTrend": "Tendance",
     "updatedAt": "Mise à jour",
+    "liveData": "Données plateforme en direct",
+    "demoData": "Données d'exemple",
     "more": "Plus",
     "viewDetail": "Détails",
     "originsTitle": "Origines du caviar en Chine",
@@ -146,6 +148,8 @@
     "inventory": "Stock",
     "inbound": "Entrée en stock",
     "lotNo": "N° de lot",
+    "uploadPhoto": "Photo du produit",
+    "photoUploaded": "Photo envoyée",
     "orders": "Exécution des commandes",
     "confirm": "Accepter",
     "ship": "Expédier",
@@ -241,6 +245,25 @@
     "missing": "Manquant",
     "complete": "Complet — prêt à expédier",
     "shipmentRegistered": "Expédition enregistrée"
+  },
+  "gdpr": {
+    "banner": "Nous n'utilisons que des cookies essentiels pour sécuriser la connexion et les transactions. Aucun traceur publicitaire. En continuant, vous acceptez.",
+    "accept": "Accepter et continuer",
+    "learnMore": "Politique de confidentialité"
+  },
+  "privacy": {
+    "nav": "Confidentialité",
+    "title": "Politique de confidentialité et protection des données",
+    "updated": "Dernière mise à jour : juillet 2026",
+    "sections": [
+      { "t": "Responsable du traitement", "d": "Cette plateforme est exploitée par Oussouri Caviar HUB (oussouri.fr / oussouri.com), établie en France (UE). Pour toute demande : contact@oussouri.fr." },
+      { "t": "Données collectées", "d": "Données de compte (e-mail, pseudonyme, informations société et contacts stockés chiffrés), données de transaction (commandes, offres, métadonnées documentaires) et données techniques (IP de connexion, journaux d'audit). Aucun profilage de navigation étranger au négoce." },
+      { "t": "Finalités et bases légales", "d": "Exécution du contrat (mise en relation et exécution des transactions), obligations légales (conformité export, CITES, fiscalité, LCB-FT) et intérêt légitime (lutte contre le contournement et audit de sécurité)." },
+      { "t": "Protection des données", "d": "Identités et coordonnées chiffrées en AES-256 au niveau colonne ; les contreparties ne voient que des codes plateforme ; l'accès du personnel aux identités réelles exige une demande motivée, tracée et notifiée au super-administrateur." },
+      { "t": "Conservation et partage", "d": "Les registres commerciaux et de conformité sont conservés selon les exigences UE et export (généralement 10 ans) ; hébergement dans l'UE (OVH France). Aucune vente de données ; partage limité au prestataire de paiement agréé (Stripe) et aux acteurs logistiques/douaniers strictement nécessaires." },
+      { "t": "Vos droits", "d": "Vous pouvez accéder à vos données, les rectifier, les exporter ou demander leur effacement (les registres commerciaux sont anonymisés lorsque la loi impose leur conservation). Demandes : contact@oussouri.fr, réponse sous 30 jours." },
+      { "t": "Cookies", "d": "Uniquement des cookies / stockage local strictement nécessaires (session, langue, état du consentement). Aucun cookie publicitaire ni de suivi intersites." }
+    ]
   },
   "help": {
     "nav": "Guide",

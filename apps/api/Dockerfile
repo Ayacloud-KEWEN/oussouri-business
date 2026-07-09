@@ -21,6 +21,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 # 完整工作区拷贝（含 node_modules 与生成的 Prisma Client）；镜像瘦身列入 P2 优化
 COPY --from=builder --chown=app:app /app /app
+# 上传文件目录（演示版本地存储；compose 挂 named volume 持久化）
+RUN mkdir -p /data/uploads && chown -R app:app /data
+ENV UPLOAD_DIR=/data/uploads
 USER app
 WORKDIR /app/apps/api
 EXPOSE 3001

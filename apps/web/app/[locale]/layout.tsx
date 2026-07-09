@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { Header } from "@/components/header";
+import { CookieConsent } from "@/components/cookie-consent";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -29,7 +30,9 @@ export default async function LocaleLayout({
         <footer className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-10 text-xs" style={{ color: "var(--color-muted)" }}>
           <span>© 2026 {dict.brand} · oussouri.fr / oussouri.com</span>
           <a href={`/${locale}/help`} style={{ color: "var(--color-accent)" }}>{dict.help.nav}</a>
+          <a href={`/${locale}/privacy`} style={{ color: "var(--color-accent)" }}>{dict.privacy.nav}</a>
         </footer>
+        <CookieConsent locale={locale} dict={dict} />
       </body>
     </html>
   );

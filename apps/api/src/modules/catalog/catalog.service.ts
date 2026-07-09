@@ -50,7 +50,10 @@ export class CatalogService {
         orderBy: { publishedAt: "desc" },
         skip: (filters.page - 1) * filters.pageSize,
         take: filters.pageSize,
-        include: { skus: { where: { status: "ACTIVE", deletedAt: null }, include: { priceTiers: { where: { isActive: true, deletedAt: null } } } } },
+        include: {
+          skus: { where: { status: "ACTIVE", deletedAt: null }, include: { priceTiers: { where: { isActive: true, deletedAt: null } } } },
+          media: { where: { deletedAt: null, kind: "IMAGE" }, orderBy: { sortOrder: "asc" }, take: 1 },
+        },
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -64,7 +67,10 @@ export class CatalogService {
   async getPublic(publicCode: string, authenticated: boolean) {
     const product = await this.prisma.product.findFirst({
       where: { publicCode, status: "ACTIVE", deletedAt: null },
-      include: { skus: { where: { status: "ACTIVE", deletedAt: null }, include: { priceTiers: { where: { isActive: true, deletedAt: null } } } } },
+      include: {
+        skus: { where: { status: "ACTIVE", deletedAt: null }, include: { priceTiers: { where: { isActive: true, deletedAt: null } } } },
+        media: { where: { deletedAt: null, kind: "IMAGE" }, orderBy: { sortOrder: "asc" }, take: 1 },
+      },
     });
     if (!product) throw new NotFoundException({ code: "NOT_FOUND", detail: "产品不存在" });
     const supplierCodes = await this.supplierCodeMap([product.supplierOrgId]);
@@ -81,12 +87,13 @@ export class CatalogService {
 
   /** 公开视图：绝不输出 supplierOrgId/originDetail/内部 UUID；未登录不给价格（BR-01-01） */
   private toPublicView(
-    product: Prisma.ProductGetPayload<{ include: { skus: { include: { priceTiers: true } } } }>,
+    product: Prisma.ProductGetPayload<{ include: { skus: { include: { priceTiers: true } }; media: true } }>,
     supplierCodes: Map<string, string>,
     authenticated: boolean,
   ) {
     return {
       code: product.publicCode,
+      image: product.media[0] ? `/api/v1/files/${product.media[0].fileKey}` : null,
       name: product.name,
       category: product.categoryCode,
       species: product.speciesCode,
@@ -161,6 +168,16 @@ export class CatalogService {
       });
       return { skuCode: sku.skuCode };
     });
+  }
+
+  /** 产品照片（演示版本地存储；key 来自 POST /files/upload） */
+  async addMedia(productCode: string, key: string, user: JwtPayload) {
+    const product = await this.ownedProduct(productCode, user);
+    const count = await this.prisma.productMedia.count({ where: { productId: product.id, deletedAt: null } });
+    await this.prisma.productMedia.create({
+      data: { productId: product.id, kind: "IMAGE", fileKey: key, sortOrder: count },
+    });
+    return { code: productCode, images: count + 1 };
   }
 
   async submitForReview(productCode: string, user: JwtPayload) {

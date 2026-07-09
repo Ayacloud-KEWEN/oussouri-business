@@ -4,6 +4,7 @@ import { ProductActions } from "@/components/product-actions";
 
 interface PublicProduct {
   code: string;
+  image: string | null;
   name: string;
   category: string;
   species: string | null;
@@ -21,13 +22,18 @@ export default async function ProductPage({ params }: { params: Promise<{ locale
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
-      <div
-        className="flex min-h-72 items-center justify-center rounded-lg text-7xl"
-        style={{ background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
-        aria-hidden
-      >
-        ◉
-      </div>
+      {product.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={product.image} alt={product.name} className="min-h-72 w-full rounded-lg object-cover" />
+      ) : (
+        <div
+          className="flex min-h-72 items-center justify-center rounded-lg text-7xl"
+          style={{ background: "var(--color-accent-soft)", color: "var(--color-accent)" }}
+          aria-hidden
+        >
+          ◉
+        </div>
+      )}
       <div className="space-y-5">
         <div className="space-y-2">
           <span className="badge">{product.supplierCode} · {dict.market.verified}</span>
