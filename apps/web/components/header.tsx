@@ -38,7 +38,8 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
     <header className="border-b" style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}>
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <button
-          className="btn btn-outline px-2.5 md:hidden"
+          className="cursor-pointer rounded-md border px-2.5 py-1.5 text-sm md:hidden"
+          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
           aria-label="Menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
