@@ -88,6 +88,7 @@ pnpm --filter @oussouri/web dev       # Web :3000（/api/v1 代理到 API）
 - **i18n**：前端文案进 `messages/*.json` 三语同步加；业务数据翻译走 `EntityTranslation` 表。
 - **原生 SQL 列名**：Prisma 字段未 `@map`，实际列为 camelCase，raw SQL 须写 `"qtyOnHand"` 带引号（踩过坑）。
 - **Windows 注意**：不要用 PowerShell `Set-Content` 改 UTF-8 源码（会 GBK 乱码）；Next standalone 仅 Docker 内启用（`NEXT_OUTPUT=standalone`）。
+- **Next standalone 陷阱**（2026-07-10 审计结论）：standalone 产物只含 server + 追踪的 node_modules + `.next/static`，**不含 `public/`**（Dockerfile 已单独 COPY，新增 public 资源无需再改）；`next.config` 的 rewrites 在**构建期**固化（生产 `/api/v1` 由 CloudPanel nginx 接管，rewrite 只是 dev 便利，勿依赖）；messages JSON 走静态 import 已打包 ✓；SSR 的 `API_URL` 是运行时 env ✓。**涉静态资源/配置的改动须用生产镜像验证**（`docker run` 后 curl），dev server 与 standalone 行为不同。
 
 ## 7. 测试与验证
 

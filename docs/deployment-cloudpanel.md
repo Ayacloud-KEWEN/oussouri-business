@@ -172,3 +172,4 @@ crontab -e   # 每日 03:15，本地保留 14 天：
 | 撮合看板空 | 正常，需先造"流失买家/开放 RFQ × 匹配库存"数据；作业台可手动"运行撮合" |
 | 磁盘增长快 | `docker system prune -f`；备份轮转是否生效 |
 | 页面样式没更新 | 浏览器强刷 Ctrl+F5；确认 web 镜像重建于 pull 之后 |
+| 静态图片 404（本地正常） | Next standalone 产物**不含 public/ 目录**，Web Dockerfile 已单独 COPY（cbb045b 修复）；新增 public 资源后只需重建 web 镜像。验证：`curl -sI http://127.0.0.1:3100/origins/heilongjiang.webp` 应 200 |
