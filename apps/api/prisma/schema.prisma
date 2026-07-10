@@ -387,6 +387,19 @@ model Session {
   @@schema("core")
 }
 
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+  @@schema("core")
+}
+
 // ============================================================
 // Party（交易主体）— 真实身份唯一存放地
 // ============================================================

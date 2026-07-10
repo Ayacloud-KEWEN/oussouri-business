@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
+import { ACCESS_COOKIE, readCookie } from "./auth-cookies";
 import type { JwtPayload } from "./auth.types";
 
 export const IS_PUBLIC_KEY = "isPublic";
@@ -18,7 +19,8 @@ export class JwtAuthGuard implements CanActivate {
     if (isPublic) return true;
     const req = context.switchToHttp().getRequest();
     const header: string | undefined = req.headers?.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
+    // Bearer 头优先（脚本/服务端），浏览器端走 httpOnly cookie
+    const token = header?.startsWith("Bearer ") ? header.slice(7) : readCookie(req, ACCESS_COOKIE);
     if (!token) throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "缺少访问令牌" });
     try {
       req.user = await this.jwt.verifyAsync<JwtPayload>(token);

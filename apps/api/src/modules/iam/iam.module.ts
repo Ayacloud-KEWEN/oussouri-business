@@ -6,10 +6,12 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { RolesGuard } from "./roles.guard";
+import { CommunicationModule } from "../communication/communication.module";
 
 @Global()
 @Module({
   imports: [
+    CommunicationModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],

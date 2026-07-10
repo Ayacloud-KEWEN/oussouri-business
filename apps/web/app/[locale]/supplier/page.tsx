@@ -242,10 +242,9 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
                     void act(async () => {
                       const form = new FormData();
                       form.append("file", file);
-                      const token = window.localStorage.getItem("oussouri.accessToken");
                       const res = await fetch("/api/v1/files/upload", {
                         method: "POST",
-                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                        credentials: "same-origin",
                         body: form,
                       });
                       const json = await res.json();

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
@@ -22,10 +23,9 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
     setError(null);
     setLoading(true);
     try {
-      const tokens = await api<LoginResponse>("POST", "/auth/login", { email, password });
-      window.localStorage.setItem("oussouri.accessToken", tokens.accessToken);
+      await api<LoginResponse>("POST", "/auth/login", { email, password });
       const me = await api<MePayload>("GET", "/auth/me");
-      setSession(tokens.accessToken, { roles: me.roles, orgCode: me.orgCode, partyType: me.partyType });
+      setSession({ roles: me.roles, orgCode: me.orgCode, partyType: me.partyType });
       const target = me.roles.includes("SUPPLIER") ? "supplier" : me.roles.includes("BUYER") ? "buyer" : me.roles.includes("ADMIN") || me.roles.includes("SUPER_ADMIN") ? "admin" : "market";
       router.push(`/${locale}/${target}`);
     } catch {
@@ -51,6 +51,11 @@ export default function LoginPage({ params }: { params: Promise<{ locale: string
         <button className="btn btn-primary w-full" disabled={loading} type="submit">
           {loading ? dict.common.loading : dict.auth.submit}
         </button>
+        <p className="text-right text-sm">
+          <Link className="underline" href={`/${locale}/forgot-password`}>
+            {dict.auth.forgotPassword}
+          </Link>
+        </p>
       </form>
     </div>
   );

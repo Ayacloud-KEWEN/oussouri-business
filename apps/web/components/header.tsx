@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Dictionary } from "@/lib/i18n";
-import { clearSession, getSession, type SessionInfo } from "@/lib/api";
+import { api, clearSession, getSession, type SessionInfo } from "@/lib/api";
 
 const LOCALES = ["zh-CN", "en", "fr"] as const;
 const LOCALE_LABELS: Record<string, string> = { "zh-CN": "中文", en: "EN", fr: "FR" };
@@ -77,9 +77,13 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
           {session ? (
             <>
               {session.orgCode && <span className="badge">{session.orgCode}</span>}
+              <Link className="whitespace-nowrap" href={`/${locale}/account`} title={dict.auth.accountSettings}>
+                ⚙
+              </Link>
               <button
                 className="btn btn-outline whitespace-nowrap"
                 onClick={() => {
+                  void api("POST", "/auth/logout", {}).catch(() => undefined);
                   clearSession();
                   router.push(`/${locale}`);
                 }}
