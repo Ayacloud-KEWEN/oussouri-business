@@ -135,7 +135,21 @@
     "accountSettings": "Account settings",
     "changePassword": "Change password",
     "changeSuccess": "Password changed",
-    "changeFailedOld": "Current password is incorrect"
+    "changeFailedOld": "Current password is incorrect",
+    "mfaTitle": "Two-factor authentication (2FA)",
+    "mfaCode": "6-digit code",
+    "mfaPrompt": "Enter the 6-digit code from your authenticator app",
+    "mfaInvalidCode": "Invalid code, please try again",
+    "mfaEnabled": "2FA is enabled",
+    "mfaDisabled": "2FA is not enabled",
+    "mfaSetupStart": "Set up 2FA",
+    "mfaSetupHint": "Add this secret to your authenticator app (Google Authenticator, 1Password…), then enter the current code to confirm.",
+    "mfaSecret": "Secret key",
+    "mfaConfirm": "Confirm and enable",
+    "mfaEnableSuccess": "2FA enabled",
+    "mfaDisable": "Disable 2FA",
+    "mfaDisableSuccess": "2FA disabled",
+    "mfaInternalNote": "Recommended for all internal staff accounts."
   },
   "buyer": {
     "title": "Buyer desk",

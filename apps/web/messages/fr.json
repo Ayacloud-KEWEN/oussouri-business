@@ -135,7 +135,21 @@
     "accountSettings": "Paramètres du compte",
     "changePassword": "Changer le mot de passe",
     "changeSuccess": "Mot de passe modifié",
-    "changeFailedOld": "Mot de passe actuel incorrect"
+    "changeFailedOld": "Mot de passe actuel incorrect",
+    "mfaTitle": "Authentification à deux facteurs (2FA)",
+    "mfaCode": "Code à 6 chiffres",
+    "mfaPrompt": "Saisissez le code à 6 chiffres de votre application d'authentification",
+    "mfaInvalidCode": "Code invalide, veuillez réessayer",
+    "mfaEnabled": "2FA activée",
+    "mfaDisabled": "2FA non activée",
+    "mfaSetupStart": "Activer la 2FA",
+    "mfaSetupHint": "Ajoutez cette clé à votre application d'authentification (Google Authenticator, 1Password…), puis saisissez le code actuel pour confirmer.",
+    "mfaSecret": "Clé secrète",
+    "mfaConfirm": "Confirmer et activer",
+    "mfaEnableSuccess": "2FA activée",
+    "mfaDisable": "Désactiver la 2FA",
+    "mfaDisableSuccess": "2FA désactivée",
+    "mfaInternalNote": "Recommandé pour tous les comptes internes."
   },
   "buyer": {
     "title": "Espace acheteur",

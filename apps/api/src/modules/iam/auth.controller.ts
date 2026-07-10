@@ -28,6 +28,21 @@ class RefreshDto {
   @IsOptional() @IsString() refreshToken?: string;
 }
 
+class MfaVerifyDto {
+  @IsString() mfaTicket!: string;
+  @IsString() code!: string;
+}
+
+class MfaEnableDto {
+  @IsString() setupTicket!: string;
+  @IsString() code!: string;
+}
+
+class MfaDisableDto {
+  @IsString() password!: string;
+  @IsString() code!: string;
+}
+
 class ChangePasswordDto {
   @IsString() oldPassword!: string;
   @IsString() @MinLength(10) @MaxLength(128) newPassword!: string;
@@ -55,9 +70,40 @@ export class AuthController {
   @Public()
   @Post("login")
   async login(@Body() dto: LoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
-    const tokens = await this.auth.login(dto.email, dto.password, ip);
+    const result = await this.auth.login(dto.email, dto.password, ip);
+    if ("mfaRequired" in result) return result;
+    setAuthCookies(res, result, this.auth.refreshTtlDays);
+    return result;
+  }
+
+  @Public()
+  @Post("mfa/verify")
+  async mfaVerify(@Body() dto: MfaVerifyDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.auth.mfaVerify(dto.mfaTicket, dto.code, ip);
     setAuthCookies(res, tokens, this.auth.refreshTtlDays);
     return tokens;
+  }
+
+  @Get("mfa/status")
+  mfaStatus(@CurrentUser() user: JwtPayload) {
+    return this.auth.mfaStatus(user.sub);
+  }
+
+  @Post("mfa/setup")
+  mfaSetup(@CurrentUser() user: JwtPayload) {
+    return this.auth.mfaSetup(user.sub);
+  }
+
+  @Post("mfa/enable")
+  async mfaEnable(@Body() dto: MfaEnableDto, @CurrentUser() user: JwtPayload, @Ip() ip: string) {
+    await this.auth.mfaEnable(user.sub, dto.setupTicket, dto.code, ip);
+    return { ok: true };
+  }
+
+  @Post("mfa/disable")
+  async mfaDisable(@Body() dto: MfaDisableDto, @CurrentUser() user: JwtPayload, @Ip() ip: string) {
+    await this.auth.mfaDisable(user.sub, dto.password, dto.code, ip);
+    return { ok: true };
   }
 
   @Public()

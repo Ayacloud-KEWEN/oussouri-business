@@ -8,6 +8,7 @@ import { CodeGeneratorService } from "../../kernel/codegen/code-generator.servic
 import { AuditService } from "../../kernel/audit/audit.service";
 import { OutboxService } from "../../kernel/outbox/outbox.service";
 import { MailPort } from "../communication/mail.port";
+import { generateTotpSecret, otpauthUrl, verifyTotp } from "./totp";
 import type { JwtPayload } from "./auth.types";
 import type { BuyerType, PartyType } from "@prisma/client";
 
@@ -43,6 +44,11 @@ export interface RegisterInput {
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface MfaChallenge {
+  mfaRequired: true;
+  mfaTicket: string;
 }
 
 @Injectable()
@@ -108,7 +114,7 @@ export class AuthService {
     return result;
   }
 
-  async login(email: string, password: string, ip?: string): Promise<TokenPair> {
+  async login(email: string, password: string, ip?: string): Promise<TokenPair | MfaChallenge> {
     const user = await this.prisma.user.findFirst({
       where: { emailBidx: this.crypto.blindIndex(email), deletedAt: null },
       include: { roles: { where: { deletedAt: null }, include: { role: true } } },
@@ -119,6 +125,12 @@ export class AuthService {
     if (user.status !== "ACTIVE") {
       throw new UnauthorizedException({ code: "AUTH_INVALID_CREDENTIALS", detail: "账号不可用" });
     }
+    // 内部角色已绑定 TOTP：先发二步验证挑战（5 分钟临时票据），验证码通过后才发正式令牌
+    if (user.roles.some((r) => r.role.isInternal) && user.totpSecretEnc) {
+      const mfaTicket = await this.jwt.signAsync({ sub: user.id, mfa: "login" }, { expiresIn: "5m" });
+      return { mfaRequired: true, mfaTicket };
+    }
+
     const membership = await this.prisma.membership.findFirst({ where: { userId: user.id, deletedAt: null } });
     const org = membership
       ? await this.prisma.organization.findUnique({ where: { id: membership.orgId } })
@@ -156,6 +168,85 @@ export class AuthService {
       orgCode: org?.publicCode,
       partyType: org?.partyType,
     });
+  }
+
+  /** 校验登录 MFA 挑战：动态码正确则发正式令牌 */
+  async mfaVerify(mfaTicket: string, code: string, ip?: string): Promise<TokenPair> {
+    let payload: { sub: string; mfa?: string };
+    try {
+      payload = await this.jwt.verifyAsync(mfaTicket);
+    } catch {
+      throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "验证会话已过期，请重新登录" });
+    }
+    if (payload.mfa !== "login") {
+      throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "验证会话无效" });
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.sub, deletedAt: null, status: "ACTIVE" },
+      include: { roles: { where: { deletedAt: null }, include: { role: true } } },
+    });
+    if (!user?.totpSecretEnc || !verifyTotp(this.crypto.decrypt(user.totpSecretEnc), code)) {
+      throw new UnauthorizedException({ code: "AUTH_INVALID_CREDENTIALS", detail: "动态码错误" });
+    }
+    const membership = await this.prisma.membership.findFirst({ where: { userId: user.id, deletedAt: null } });
+    const org = membership ? await this.prisma.organization.findUnique({ where: { id: membership.orgId } }) : null;
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    await this.audit.log({ actorId: user.id, action: "LOGIN_MFA", ip });
+    return this.issueTokens({
+      sub: user.id,
+      roles: user.roles.map((r) => r.role.code),
+      orgId: org?.id,
+      orgCode: org?.publicCode,
+      partyType: org?.partyType,
+    });
+  }
+
+  async mfaStatus(userId: string): Promise<{ enabled: boolean; internal: boolean }> {
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+      include: { roles: { where: { deletedAt: null }, include: { role: true } } },
+    });
+    return { enabled: Boolean(user.totpSecretEnc), internal: user.roles.some((r) => r.role.isInternal) };
+  }
+
+  /** 生成 TOTP 绑定材料：secret 只进签名票据，验证首个动态码后才落库 */
+  async mfaSetup(userId: string): Promise<{ secret: string; otpauthUrl: string; setupTicket: string }> {
+    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+    const secret = generateTotpSecret();
+    const setupTicket = await this.jwt.signAsync({ sub: userId, mfa: "setup", secret }, { expiresIn: "10m" });
+    return { secret, otpauthUrl: otpauthUrl(secret, user.displayName), setupTicket };
+  }
+
+  async mfaEnable(userId: string, setupTicket: string, code: string, ip?: string): Promise<void> {
+    let payload: { sub: string; mfa?: string; secret?: string };
+    try {
+      payload = await this.jwt.verifyAsync(setupTicket);
+    } catch {
+      throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "绑定会话已过期，请重新生成" });
+    }
+    if (payload.mfa !== "setup" || payload.sub !== userId || !payload.secret) {
+      throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "绑定会话无效" });
+    }
+    if (!verifyTotp(payload.secret, code)) {
+      throw new BadRequestException({ code: "VALIDATION_FAILED", detail: "动态码错误，请检查验证器时间" });
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totpSecretEnc: this.crypto.encrypt(payload.secret), version: { increment: 1 } },
+    });
+    await this.audit.log({ actorId: userId, action: "MFA_ENABLED", targetType: "User", targetId: userId, ip });
+  }
+
+  async mfaDisable(userId: string, password: string, code: string, ip?: string): Promise<void> {
+    const user = await this.prisma.user.findFirstOrThrow({ where: { id: userId, deletedAt: null } });
+    if (!user.passwordHash || !this.crypto.verifyPassword(password, user.passwordHash)) {
+      throw new UnauthorizedException({ code: "AUTH_INVALID_CREDENTIALS", detail: "密码错误" });
+    }
+    if (!user.totpSecretEnc || !verifyTotp(this.crypto.decrypt(user.totpSecretEnc), code)) {
+      throw new UnauthorizedException({ code: "AUTH_INVALID_CREDENTIALS", detail: "动态码错误" });
+    }
+    await this.prisma.user.update({ where: { id: userId }, data: { totpSecretEnc: null, version: { increment: 1 } } });
+    await this.audit.log({ actorId: userId, action: "MFA_DISABLED", targetType: "User", targetId: userId, ip });
   }
 
   /** 登录态修改密码：验旧密码，吊销全部旧会话，返回新令牌对保持登录 */
