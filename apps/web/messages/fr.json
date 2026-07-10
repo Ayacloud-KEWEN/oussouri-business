@@ -151,6 +151,18 @@
     "mfaDisableSuccess": "2FA désactivée",
     "mfaInternalNote": "Recommandé pour tous les comptes internes."
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification",
+    "markRead": "Marquer comme lu",
+    "templates": {
+      "ORDER_PAID": "Commande {orderCode} payée : {grandTotal} {currency}",
+      "ORDER_PAYMENT_LINK": "Lien de paiement prêt pour la commande {orderCode}",
+      "TEMP_BREACH": "Alerte température chaîne du froid sur {orderCode} (n°{breachCount})",
+      "DOC_RECEIVED": "Document {docType} reçu pour {trackingCode}",
+      "ACCESS_ESCALATION": "Demande d'accès aux données sensibles"
+    }
+  },
   "buyer": {
     "title": "Espace acheteur",
     "cart": "Panier",

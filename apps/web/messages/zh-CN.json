@@ -151,6 +151,18 @@
     "mfaDisableSuccess": "两步验证已关闭",
     "mfaInternalNote": "建议所有内部员工账号开启。"
   },
+  "notifications": {
+    "title": "通知",
+    "empty": "暂无通知",
+    "markRead": "标为已读",
+    "templates": {
+      "ORDER_PAID": "订单 {orderCode} 已支付：{grandTotal} {currency}",
+      "ORDER_PAYMENT_LINK": "订单 {orderCode} 的支付链接已生成",
+      "TEMP_BREACH": "订单 {orderCode} 冷链温度告警（第 {breachCount} 次）",
+      "DOC_RECEIVED": "运单 {trackingCode} 收到单证 {docType}",
+      "ACCESS_ESCALATION": "有敏感数据穿透审批请求"
+    }
+  },
   "buyer": {
     "title": "采购工作台",
     "cart": "购物车",

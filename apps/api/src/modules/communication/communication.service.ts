@@ -3,6 +3,7 @@ import { OnEvent } from "@nestjs/event-emitter";
 import { PrismaService } from "../../kernel/prisma/prisma.service";
 import { PiiFilterService } from "../../kernel/pii/pii-filter.service";
 import { AuditService } from "../../kernel/audit/audit.service";
+import { NotificationGateway } from "./notification.gateway";
 import type { JwtPayload } from "../iam/auth.types";
 
 const BLOCK_FREEZE_THRESHOLD = 3;
@@ -14,6 +15,7 @@ export class CommunicationService {
     private readonly prisma: PrismaService,
     private readonly piiFilter: PiiFilterService,
     private readonly audit: AuditService,
+    private readonly gateway: NotificationGateway,
   ) {}
 
   // ---------- IM（M17） ----------
@@ -99,9 +101,11 @@ export class CommunicationService {
   // ---------- 通知（M16） ----------
 
   async notifyUser(userId: string, templateCode: string, payload: Record<string, unknown>): Promise<void> {
-    await this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: { userId, templateCode, channel: "INAPP", payload: payload as never },
     });
+    // 在线用户实时推送（WS），离线用户下次拉取列表可见
+    this.gateway.push(userId, { type: "notification", id: notification.id, templateCode, payload, createdAt: notification.createdAt });
   }
 
   async myNotifications(user: JwtPayload) {

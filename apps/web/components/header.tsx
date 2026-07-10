@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Dictionary } from "@/lib/i18n";
 import { api, clearSession, getSession, type SessionInfo } from "@/lib/api";
+import { NotificationBell } from "./notification-bell";
 
 const LOCALES = ["zh-CN", "en", "fr"] as const;
 const LOCALE_LABELS: Record<string, string> = { "zh-CN": "中文", en: "EN", fr: "FR" };
@@ -77,6 +78,7 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
           {session ? (
             <>
               {session.orgCode && <span className="badge">{session.orgCode}</span>}
+              <NotificationBell dict={dict} />
               <Link className="whitespace-nowrap" href={`/${locale}/account`} title={dict.auth.accountSettings}>
                 ⚙
               </Link>

@@ -19,8 +19,8 @@ export function clearAuthCookies(res: Response): void {
   res.clearCookie(REFRESH_COOKIE, base);
 }
 
-/** 轻量 cookie 解析（避免 cookie-parser 依赖） */
-export function readCookie(req: Request, name: string): string | undefined {
+/** 轻量 cookie 解析（避免 cookie-parser 依赖）；兼容 express Request 与原生 IncomingMessage（WS 升级） */
+export function readCookie(req: Pick<Request, "headers">, name: string): string | undefined {
   const header = req.headers?.cookie;
   if (!header) return undefined;
   for (const part of header.split(";")) {

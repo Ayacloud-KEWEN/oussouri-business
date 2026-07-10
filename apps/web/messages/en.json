@@ -151,6 +151,18 @@
     "mfaDisableSuccess": "2FA disabled",
     "mfaInternalNote": "Recommended for all internal staff accounts."
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "markRead": "Mark read",
+    "templates": {
+      "ORDER_PAID": "Order {orderCode} paid: {grandTotal} {currency}",
+      "ORDER_PAYMENT_LINK": "Payment link ready for order {orderCode}",
+      "TEMP_BREACH": "Cold-chain temperature alert on {orderCode} (breach #{breachCount})",
+      "DOC_RECEIVED": "Document {docType} received for {trackingCode}",
+      "ACCESS_ESCALATION": "Sensitive data access escalation requested"
+    }
+  },
   "buyer": {
     "title": "Buyer desk",
     "cart": "Cart",
