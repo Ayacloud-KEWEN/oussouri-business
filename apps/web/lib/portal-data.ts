@@ -24,10 +24,10 @@ export const MARKET_INSIGHTS = {
 };
 
 export const ORIGINS = [
-  { name: { "zh-CN": "黑龙江省", en: "Heilongjiang", fr: "Heilongjiang" }, species: "Beluga, Osetra, Sevruga", outputKg: "12,000+", tone: "#1d3a5f" },
-  { name: { "zh-CN": "浙江省", en: "Zhejiang", fr: "Zhejiang" }, species: "Osetra, Baerii", outputKg: "8,500+", tone: "#1f4a52" },
-  { name: { "zh-CN": "湖北省", en: "Hubei", fr: "Hubei" }, species: "Siberian Sturgeon", outputKg: "3,200+", tone: "#254a2e" },
-  { name: { "zh-CN": "广东省", en: "Guangdong", fr: "Guangdong" }, species: "Baerii", outputKg: "2,800+", tone: "#4a3a1f" },
+  { name: { "zh-CN": "黑龙江省", en: "Heilongjiang", fr: "Heilongjiang" }, species: "Beluga, Osetra, Sevruga", outputKg: "12,000+", img: "/origins/heilongjiang.webp" },
+  { name: { "zh-CN": "浙江省", en: "Zhejiang", fr: "Zhejiang" }, species: "Osetra, Baerii", outputKg: "8,500+", img: "/origins/zhejiang.webp" },
+  { name: { "zh-CN": "湖北省", en: "Hubei", fr: "Hubei" }, species: "Siberian Sturgeon", outputKg: "3,200+", img: "/origins/hubei.webp" },
+  { name: { "zh-CN": "广东省", en: "Guangdong", fr: "Guangdong" }, species: "Baerii", outputKg: "2,800+", img: "/origins/guangdong.webp" },
 ];
 
 /** 买家需求：按身份防火墙原则以平台代码 + 类型展示（GBR-1） */

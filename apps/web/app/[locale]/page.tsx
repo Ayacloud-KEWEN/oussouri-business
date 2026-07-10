@@ -159,9 +159,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <div className="space-y-3">
               {ORIGINS.map((o) => (
                 <div key={o.name.en} className="flex gap-3 rounded-md border p-2.5" style={{ borderColor: C.border, background: C.panelSoft }}>
-                  <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded" style={{ background: o.tone, color: C.gold }} aria-hidden>
-                    ◉
-                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={o.img} alt={ln(o.name, locale)} className="h-16 w-24 shrink-0 rounded object-cover" />
                   <div className="min-w-0 text-xs leading-relaxed">
                     <p className="text-sm font-medium">{ln(o.name, locale)}</p>
                     <p style={{ color: C.muted }}>{t.mainSpecies}: {o.species}</p>

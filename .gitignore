@@ -7,6 +7,9 @@ coverage/
 *.err
 *.tsbuildinfo
 apps/api/uploads/
+# 根目录素材原图（压缩版已入 apps/web/public/origins）
+/*.png
+/*.jpg
 .env
 .env.local
 .env.*.local
