@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
 
-interface SupplierProduct { code: string; name: string; status: string; skuCount: number }
+interface SupplierProduct { code: string; name: string; description: string | null; status: string; skuCount: number }
 interface Lot { skuCode: string; lotNo: string; qtyOnHand: string; qtyReserved: string; expiresAt: string; status: string }
 interface Order { code: string; status: string; counterpartyCode: string; grandTotal: string; commission?: string; currency: string }
 interface OpenRfq { code: string; buyerCode?: string; buyerCountry?: string; categoryCode: string; speciesCode?: string; qty: string; targetPrice?: string; deadline: string; alreadyQuoted: boolean }
@@ -183,6 +183,7 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
   const [openRfqs, setOpenRfqs] = useState<OpenRfq[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState({ name: "", categoryCode: "CAVIAR", speciesCode: "DAU", hsCode: "1604310000", originCountry: "CN" });
+  const [editing, setEditing] = useState<{ code: string; name: string; description: string } | null>(null);
   const [newSku, setNewSku] = useState({ productCode: "", packSpec: "50g", netWeightKg: 0.05, unitPrice: 320 });
   const [inbound, setInbound] = useState({ skuCode: "", lotNo: "", qty: 100, producedAt: "2026-06-01", expiresAt: "2026-09-01" });
 
@@ -223,6 +224,12 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
               <span>{p.name}</span>
               <span className="badge">{p.status}</span>
               <span style={{ color: "var(--color-muted)" }}>SKU × {p.skuCount}</span>
+              <button
+                className="btn btn-outline"
+                onClick={() => setEditing(editing?.code === p.code ? null : { code: p.code, name: p.name, description: p.description ?? "" })}
+              >
+                {dict.supplier.edit}
+              </button>
               <label className="btn btn-outline cursor-pointer">
                 {dict.supplier.uploadPhoto}
                 <input
@@ -253,6 +260,35 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
                 <button className="btn btn-outline ml-auto" onClick={() => act(() => api("POST", `/supplier/products/${p.code}/submit`, {}))}>
                   {dict.supplier.submitReview}
                 </button>
+              )}
+              {editing?.code === p.code && (
+                <div className="w-full space-y-2 rounded-md border p-3" style={{ borderColor: "var(--color-border)" }}>
+                  <div>
+                    <label className="label">{dict.supplier.productName}</label>
+                    <input className="input" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} maxLength={200} />
+                  </div>
+                  <div>
+                    <label className="label">{dict.supplier.descriptionLabel}</label>
+                    <textarea
+                      className="input min-h-20"
+                      value={editing.description}
+                      onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                      maxLength={5000}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => act(async () => {
+                        await api("PATCH", `/supplier/products/${p.code}`, { name: editing.name, description: editing.description });
+                        setEditing(null);
+                      }, dict.supplier.editResubmitted)}
+                    >
+                      {dict.supplier.save}
+                    </button>
+                    <button className="btn btn-outline" onClick={() => setEditing(null)}>{dict.supplier.cancelEdit}</button>
+                  </div>
+                </div>
               )}
             </div>
           ))}

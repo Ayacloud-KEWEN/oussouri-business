@@ -170,14 +170,89 @@ export class CatalogService {
     });
   }
 
-  /** 产品照片（演示版本地存储；key 来自 POST /files/upload） */
+  /** 产品照片（重传即替换旧主图；key 来自 POST /files/upload） */
   async addMedia(productCode: string, key: string, user: JwtPayload) {
     const product = await this.ownedProduct(productCode, user);
-    const count = await this.prisma.productMedia.count({ where: { productId: product.id, deletedAt: null } });
-    await this.prisma.productMedia.create({
-      data: { productId: product.id, kind: "IMAGE", fileKey: key, sortOrder: count },
+    await this.prisma.$transaction([
+      this.prisma.productMedia.updateMany({
+        where: { productId: product.id, kind: "IMAGE", deletedAt: null },
+        data: { deletedAt: new Date() },
+      }),
+      this.prisma.productMedia.create({
+        data: { productId: product.id, kind: "IMAGE", fileKey: key, sortOrder: 0 },
+      }),
+    ]);
+    return { code: productCode, replaced: true };
+  }
+
+  /**
+   * 供应商编辑产品：DRAFT 自由改；ACTIVE 改动后自动转 PENDING_REVIEW 重新送审
+   * （防止上架后偷换关键信息，M04 审核闭环）。
+   */
+  async updateProduct(
+    productCode: string,
+    input: { name?: string; description?: string; speciesCode?: string; gradeCode?: string; hsCode?: string },
+    user: JwtPayload,
+  ) {
+    const product = await this.ownedProduct(productCode, user);
+    if (!["DRAFT", "ACTIVE", "PENDING_REVIEW"].includes(product.status)) {
+      throw new ForbiddenException({ code: "STATE_TRANSITION_DENIED", detail: "当前状态不可编辑" });
+    }
+    const needsReview = product.status === "ACTIVE";
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: product.id },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.speciesCode !== undefined ? { speciesCode: input.speciesCode } : {}),
+          ...(input.gradeCode !== undefined ? { gradeCode: input.gradeCode } : {}),
+          ...(input.hsCode !== undefined ? { hsCode: input.hsCode } : {}),
+          ...(needsReview ? { status: "PENDING_REVIEW" } : {}),
+          updatedBy: user.sub,
+          version: { increment: 1 },
+        },
+      });
+      await this.audit.logInTx(tx, {
+        actorId: user.sub,
+        action: "UPDATE",
+        targetType: "Product",
+        targetId: product.id,
+        diff: { fields: Object.keys(input), resubmitted: needsReview },
+      });
     });
-    return { code: productCode, images: count + 1 };
+    return { code: productCode, status: needsReview ? "PENDING_REVIEW" : product.status, resubmitted: needsReview };
+  }
+
+  /** 管理员/质检待审列表（含供应商代码与详情，免手输编号） */
+  async listPendingReview() {
+    const products = await this.prisma.product.findMany({
+      where: { status: "PENDING_REVIEW", deletedAt: null },
+      orderBy: { updatedAt: "asc" },
+      include: {
+        skus: { where: { deletedAt: null }, include: { priceTiers: { where: { isActive: true, deletedAt: null } } } },
+        media: { where: { deletedAt: null, kind: "IMAGE" }, orderBy: { sortOrder: "asc" }, take: 1 },
+      },
+    });
+    const supplierCodes = await this.supplierCodeMap(products.map((p) => p.supplierOrgId));
+    return products.map((p) => ({
+      code: p.publicCode,
+      name: p.name,
+      description: p.description,
+      categoryCode: p.categoryCode,
+      speciesCode: p.speciesCode,
+      gradeCode: p.gradeCode,
+      hsCode: p.hsCode,
+      supplierCode: supplierCodes.get(p.supplierOrgId),
+      image: p.media[0] ? `/api/v1/files/${p.media[0].fileKey}` : null,
+      skus: p.skus.map((s) => ({
+        skuCode: s.skuCode,
+        packSpec: s.packSpec,
+        moq: s.moq,
+        priceTiers: s.priceTiers.map((t) => ({ currency: t.currency, qtyMin: t.qtyMin, qtyMax: t.qtyMax, unitPrice: t.unitPrice })),
+      })),
+      submittedAt: p.updatedAt,
+    }));
   }
 
   async submitForReview(productCode: string, user: JwtPayload) {
@@ -221,7 +296,7 @@ export class CatalogService {
       orderBy: { createdAt: "desc" },
       include: { skus: { where: { deletedAt: null } } },
     });
-    return rows.map((p) => ({ code: p.publicCode, name: p.name, status: p.status, skuCount: p.skus.length }));
+    return rows.map((p) => ({ code: p.publicCode, name: p.name, description: p.description, status: p.status, skuCount: p.skus.length }));
   }
 
   private async ownedProduct(publicCode: string, user: JwtPayload) {

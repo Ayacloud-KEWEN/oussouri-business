@@ -19,10 +19,10 @@
 | 账号用途 | 建议注册信息 | 角色赋权 |
 |---|---|---|
 | 演示主控（你自己） | 任意邮箱 | ADMIN + SUPER_ADMIN + FINANCE + BROKER + CUSTOMS_OFFICER + QUALITY_INSPECTOR（一号通吃，演示切页面不用换号） |
-| 供应商 A | 公司名"黑龙江华芝宝生物科技有限公司"，CN | 无（管理员审核通过） |
-| 供应商 B | 公司名"杭州千岛湖鲟龙科技股份有限公司"，CN | 无 |
-| 买家 A | 公司名"SAS JINGLIN PARIS"，FR，类型=进口商 | 无 |
-| 买家 B | 公司名"Maison Bruno Milan SRL"，IT，类型=米其林餐厅 | 无 |
+| 供应商 A | 公司名"黑龙江华芝宝生物科技有限公司"，CN | 无（管理员审核通过） | test01@gmail.com 0123456789
+| 供应商 B | 公司名"杭州千岛湖鲟龙科技股份有限公司"，CN | 无 | test02@gmail.com 0123456789
+| 买家 A | 公司名"SAS JINGLIN PARIS"，FR，类型=进口商 | 无 | test03@gmail.com 0123456789
+| 买家 B | 公司名"Maison Bruno Milan SRL"，IT，类型=米其林餐厅 | 无 | test04@gmail.com 0123456789
 
 > 五个账号密码建议统一好记（如 `Demo2026!Caviar`），写在演示小抄上。
 > 注册后用主控账号进管理后台逐一审核通过——**留一个新注册的不审核**，演示"审核队列"时有活数据。

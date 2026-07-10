@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { Type } from "class-transformer";
 import {
   ArrayNotEmpty, IsArray, IsIn, IsISO31661Alpha2, IsNumber, IsOptional, IsPositive, IsString,
@@ -34,6 +34,14 @@ class CreateSkuDto {
   @IsOptional() @IsNumber() @IsPositive() moq?: number;
   @IsOptional() @IsNumber() @IsPositive() shelfLifeDays?: number;
   @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => PriceTierDto) priceTiers!: PriceTierDto[];
+}
+
+class UpdateProductDto {
+  @IsOptional() @IsString() @MaxLength(200) name?: string;
+  @IsOptional() @IsString() @MaxLength(5000) description?: string;
+  @IsOptional() @IsString() speciesCode?: string;
+  @IsOptional() @IsString() gradeCode?: string;
+  @IsOptional() @IsString() @MaxLength(20) hsCode?: string;
 }
 
 class MediaDto {
@@ -99,6 +107,18 @@ export class CatalogController {
   @Post("supplier/products/:code/submit")
   submit(@Param("code") code: string, @CurrentUser() user: JwtPayload) {
     return this.catalog.submitForReview(code, user);
+  }
+
+  @Roles("SUPPLIER")
+  @Patch("supplier/products/:code")
+  update(@Param("code") code: string, @Body() dto: UpdateProductDto, @CurrentUser() user: JwtPayload) {
+    return this.catalog.updateProduct(code, dto, user);
+  }
+
+  @Roles("ADMIN", "QUALITY_INSPECTOR")
+  @Get("admin/products/pending")
+  pendingReview() {
+    return this.catalog.listPendingReview();
   }
 
   @Roles("ADMIN", "QUALITY_INSPECTOR")

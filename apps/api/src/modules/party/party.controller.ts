@@ -42,8 +42,8 @@ export class PartyController {
 
   @Roles("ADMIN")
   @Get("admin/parties")
-  listPending(@Query("page") page = "1", @Query("pageSize") pageSize = "20") {
-    return this.party.listPending(Number(page), Math.min(Number(pageSize), 100));
+  listPending(@Query("page") page = "1", @Query("pageSize") pageSize = "20", @CurrentUser() user?: JwtPayload) {
+    return this.party.listPending(Number(page), Math.min(Number(pageSize), 100), user!);
   }
 
   @Roles("ADMIN")

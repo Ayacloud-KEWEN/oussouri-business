@@ -30,22 +30,41 @@ export class PartyService {
     };
   }
 
-  async listPending(page: number, pageSize: number) {
+  /**
+   * 入驻审核队列：管理员按可见性矩阵可见真实公司名与证书（初稿 §11.2），
+   * 每次查看整批留一条审计（含涉及的代码清单）。
+   */
+  async listPending(page: number, pageSize: number, actor: JwtPayload) {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.organization.findMany({
         where: { status: "PENDING", deletedAt: null },
         orderBy: { createdAt: "asc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: { certificates: { where: { deletedAt: null } }, contacts: { where: { deletedAt: null }, take: 1, orderBy: { isPrimary: "desc" } } },
       }),
       this.prisma.organization.count({ where: { status: "PENDING", deletedAt: null } }),
     ]);
+    if (rows.length > 0) {
+      await this.audit.log({
+        actorId: actor.sub,
+        actorRole: actor.roles.join(","),
+        action: "VIEW_SENSITIVE",
+        targetType: "Organization",
+        diff: { scene: "ONBOARDING_REVIEW_QUEUE", codes: rows.map((o) => o.publicCode) },
+        reason: "入驻审核",
+      });
+    }
     return {
       data: rows.map((o) => ({
         publicCode: o.publicCode,
         partyType: o.partyType,
         countryIso2: o.countryIso2,
-        // 审核场景管理员可见公司名（低敏即时放行，仍留审计由 controller 调用 viewSensitive）
+        companyName: this.crypto.decrypt(o.legalNameEnc),
+        registrationNo: o.registrationNoEnc ? this.crypto.decrypt(o.registrationNoEnc) : null,
+        taxId: o.taxIdEnc ? this.crypto.decrypt(o.taxIdEnc) : null,
+        contactName: o.contacts[0]?.nameEnc ? this.crypto.decrypt(o.contacts[0].nameEnc) : null,
+        certificates: o.certificates.map((c) => ({ certType: c.certType, certNo: c.certNo, expiryDate: c.expiryDate, status: c.status })),
         submittedAt: o.createdAt,
       })),
       meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
