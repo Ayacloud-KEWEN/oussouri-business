@@ -38,13 +38,19 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
   const [message, setMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const [parties, products] = await Promise.all([
-      api<{ data: PendingParty[] }>("GET", "/admin/parties?page=1&pageSize=50").catch(() => ({ data: [] })),
-      api<PendingProduct[]>("GET", "/admin/products/pending").catch(() => []),
-    ]);
-    setPending(parties.data);
-    setPendingProducts(products);
-  }, []);
+    // 失败时保留旧数据并提示，不把错误伪装成空列表（曾导致"审批任务消失"）
+    try {
+      const [parties, products] = await Promise.all([
+        api<{ data: PendingParty[] }>("GET", "/admin/parties?page=1&pageSize=50"),
+        api<PendingProduct[]>("GET", "/admin/products/pending"),
+      ]);
+      setPending(parties.data);
+      setPendingProducts(products);
+      setMessage(null);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : dict.common.error);
+    }
+  }, [dict.common.error]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -52,8 +58,8 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
     setMessage(null);
     try {
       await fn();
-      setMessage(dict.common.success);
       await refresh();
+      setMessage(dict.common.success);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : dict.common.error);
     }

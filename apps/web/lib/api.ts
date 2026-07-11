@@ -53,12 +53,24 @@ async function rawFetch(method: string, path: string, body?: unknown): Promise<R
   });
 }
 
+// 刷新单飞：并发 401 共享同一次 /auth/refresh，避免旋转令牌互相吊销
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshOnce(): Promise<boolean> {
+  refreshInFlight ??= rawFetch("POST", "/auth/refresh", {})
+    .then((r) => r.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshInFlight = null;
+    });
+  return refreshInFlight;
+}
+
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   let res = await rawFetch(method, path, body);
   // 访问令牌过期：用 refresh cookie 换新后重放一次（刷新接口本身除外）
   if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login") {
-    const refreshed = await rawFetch("POST", "/auth/refresh", {});
-    if (refreshed.ok) {
+    if (await refreshOnce()) {
       res = await rawFetch(method, path, body);
     } else if (getSession()) {
       clearSession();

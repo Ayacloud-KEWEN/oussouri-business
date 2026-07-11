@@ -148,13 +148,20 @@ export class AuthService {
     });
   }
 
+  /** 旋转刷新：旧令牌吊销后保留短暂宽限期，容忍多请求/多标签页并发刷新 */
+  private static readonly REFRESH_GRACE_MS = 10_000;
+
   async refresh(refreshToken: string): Promise<TokenPair> {
     const hash = this.crypto.sha256(refreshToken);
     const session = await this.prisma.session.findUnique({ where: { refreshHash: hash } });
-    if (!session || session.revokedAt || session.expiresAt < new Date()) {
+    const revokedBeyondGrace =
+      session?.revokedAt && Date.now() - session.revokedAt.getTime() > AuthService.REFRESH_GRACE_MS;
+    if (!session || revokedBeyondGrace || session.expiresAt < new Date()) {
       throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "刷新令牌无效" });
     }
-    await this.prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+    if (!session.revokedAt) {
+      await this.prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+    }
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: session.userId },
       include: { roles: { where: { deletedAt: null }, include: { role: true } } },
