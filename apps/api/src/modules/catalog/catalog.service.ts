@@ -4,6 +4,7 @@ import { PrismaService } from "../../kernel/prisma/prisma.service";
 import { CodeGeneratorService } from "../../kernel/codegen/code-generator.service";
 import { AuditService } from "../../kernel/audit/audit.service";
 import { OutboxService } from "../../kernel/outbox/outbox.service";
+import { EmbeddingPort } from "./embedding.port";
 import type { JwtPayload } from "../iam/auth.types";
 
 export interface CreateProductInput {
@@ -33,23 +34,36 @@ export class CatalogService {
     private readonly codegen: CodeGeneratorService,
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
+    private readonly embedding: EmbeddingPort,
   ) {}
 
   // ---------- 公开目录（身份防火墙：仅供应商代码） ----------
 
-  async listPublic(filters: { category?: string; species?: string; page: number; pageSize: number }, authenticated: boolean) {
+  async listPublic(
+    filters: { category?: string; species?: string; q?: string; page: number; pageSize: number },
+    authenticated: boolean,
+  ) {
     const where: Prisma.ProductWhereInput = {
       status: "ACTIVE",
       deletedAt: null,
       ...(filters.category ? { categoryCode: filters.category } : {}),
       ...(filters.species ? { speciesCode: { in: filters.species.split(",") } } : {}),
     };
+
+    // 关键词搜索：先取按相关度排序的 id 列表，再分页装配（语义优先，未配置向量则全文）
+    let rankedIds: string[] | null = null;
+    if (filters.q?.trim()) {
+      rankedIds = await this.searchProductIds(filters.q.trim().slice(0, 100));
+      if (rankedIds.length === 0) {
+        return { data: [], meta: { page: filters.page, pageSize: filters.pageSize, total: 0, totalPages: 0 } };
+      }
+      where.id = { in: rankedIds };
+    }
+
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.product.findMany({
         where,
-        orderBy: { publishedAt: "desc" },
-        skip: (filters.page - 1) * filters.pageSize,
-        take: filters.pageSize,
+        ...(rankedIds ? {} : { orderBy: { publishedAt: "desc" } as const, skip: (filters.page - 1) * filters.pageSize, take: filters.pageSize }),
         include: {
           skus: { where: { status: "ACTIVE", deletedAt: null }, include: { priceTiers: { where: { isActive: true, deletedAt: null } } } },
           media: { where: { deletedAt: null, kind: "IMAGE" }, orderBy: { sortOrder: "asc" }, take: 1 },
@@ -57,11 +71,57 @@ export class CatalogService {
       }),
       this.prisma.product.count({ where }),
     ]);
-    const supplierCodes = await this.supplierCodeMap(rows.map((r) => r.supplierOrgId));
+    // 搜索模式：按相关度重排后在内存分页（结果集受 SEARCH_LIMIT 约束）
+    const ordered = rankedIds
+      ? rankedIds
+          .map((id) => rows.find((r) => r.id === id))
+          .filter((r): r is (typeof rows)[number] => Boolean(r))
+          .slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize)
+      : rows;
+    const supplierCodes = await this.supplierCodeMap(ordered.map((r) => r.supplierOrgId));
     return {
-      data: rows.map((p) => this.toPublicView(p, supplierCodes, authenticated)),
+      data: ordered.map((p) => this.toPublicView(p, supplierCodes, authenticated)),
       meta: { page: filters.page, pageSize: filters.pageSize, total, totalPages: Math.ceil(total / filters.pageSize) },
     };
+  }
+
+  private static readonly SEARCH_LIMIT = 200;
+
+  /** 相关度排序的产品 id：pgvector 语义（embedding 提供方已配置且有索引数据）→ 否则 tsvector 全文 + trigram/子串 */
+  private async searchProductIds(q: string): Promise<string[]> {
+    const vector = await this.embedding.embed(q);
+    if (vector) {
+      const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT p."id", MIN(e."embedding" <=> ${`[${vector.join(",")}]`}::vector) AS dist
+        FROM "core"."product_embeddings" e
+        JOIN "core"."product_skus" s ON s."id" = e."skuId"
+        JOIN "core"."products" p ON p."id" = s."productId"
+        WHERE p."status" = 'ACTIVE' AND p."deletedAt" IS NULL
+        GROUP BY p."id"
+        ORDER BY dist
+        LIMIT ${CatalogService.SEARCH_LIMIT}
+      `;
+      if (rows.length > 0) return rows.map((r) => r.id);
+    }
+    // 中文无空格分词：整串子串命中 OR（按空白拆词后逐词子串 AND）OR tsvector 全文（西文词形）
+    const terms = q.split(/\s+/).filter(Boolean).slice(0, 5);
+    const termMatch = (t: string) => {
+      const p = `%${t}%`;
+      return Prisma.sql`("name" ILIKE ${p} OR coalesce("description",'') ILIKE ${p} OR coalesce("speciesCode",'') ILIKE ${p} OR coalesce("gradeCode",'') ILIKE ${p})`;
+    };
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT "id"
+      FROM "core"."products"
+      WHERE "status" = 'ACTIVE' AND "deletedAt" IS NULL
+        AND (
+          to_tsvector('simple', coalesce("name",'') || ' ' || coalesce("description",'')) @@ websearch_to_tsquery('simple', ${q})
+          OR ${termMatch(q)}
+          OR (${Prisma.join(terms.map(termMatch), " AND ")})
+        )
+      ORDER BY similarity("name", ${q}) DESC, "publishedAt" DESC NULLS LAST
+      LIMIT ${CatalogService.SEARCH_LIMIT}
+    `;
+    return rows.map((r) => r.id);
   }
 
   async getPublic(publicCode: string, authenticated: boolean) {

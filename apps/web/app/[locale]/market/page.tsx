@@ -20,15 +20,32 @@ interface PublicProduct {
   skus: PublicSku[];
 }
 
-export default async function MarketPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function MarketPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ q?: string }>;
+}) {
   const { locale } = await params;
+  const { q } = await searchParams;
   const dict = getDictionary(locale);
-  const result = await serverApi<{ data: PublicProduct[] }>("/products?pageSize=50");
+  const query = q?.trim() ? `&q=${encodeURIComponent(q.trim())}` : "";
+  const result = await serverApi<{ data: PublicProduct[] }>(`/products?pageSize=50${query}`);
   const products = result?.data ?? [];
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{dict.market.title}</h1>
+      <form className="flex max-w-md gap-2" action={`/${locale}/market`} method="get">
+        <input className="input flex-1" type="search" name="q" defaultValue={q ?? ""} placeholder={dict.market.searchPlaceholder} />
+        <button className="btn btn-primary" type="submit">{dict.market.search}</button>
+        {q && (
+          <Link className="btn btn-outline" href={`/${locale}/market`}>
+            {dict.market.clearSearch}
+          </Link>
+        )}
+      </form>
       {products.length === 0 && <p style={{ color: "var(--color-muted)" }}>{dict.market.empty}</p>}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {

@@ -64,11 +64,12 @@ export class CatalogController {
     @Query("pageSize") pageSize = "20",
     @Query("filter[category]") category?: string,
     @Query("filter[species]") species?: string,
+    @Query("q") q?: string,
     @Req() req?: { headers: Record<string, string | undefined> },
   ) {
     const authenticated = Boolean(req?.headers?.authorization);
     return this.catalog.listPublic(
-      { category, species, page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
+      { category, species, q, page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
       authenticated,
     );
   }

@@ -88,6 +88,9 @@
   },
   "market": {
     "title": "市场",
+    "searchPlaceholder": "搜索产品、品种、等级…",
+    "search": "搜索",
+    "clearSearch": "清除",
     "supplier": "供应商",
     "verified": "已验证",
     "loginForPrice": "登录查看批发价",

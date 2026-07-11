@@ -88,6 +88,9 @@
   },
   "market": {
     "title": "Market",
+    "searchPlaceholder": "Search products, species, grades…",
+    "search": "Search",
+    "clearSearch": "Clear",
     "supplier": "Supplier",
     "verified": "Verified",
     "loginForPrice": "Log in for wholesale prices",

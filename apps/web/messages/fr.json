@@ -88,6 +88,9 @@
   },
   "market": {
     "title": "Marché",
+    "searchPlaceholder": "Rechercher produits, espèces, qualités…",
+    "search": "Rechercher",
+    "clearSearch": "Effacer",
     "supplier": "Fournisseur",
     "verified": "Vérifié",
     "loginForPrice": "Connectez-vous pour voir les prix de gros",
