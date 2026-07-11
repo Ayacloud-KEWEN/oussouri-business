@@ -4,6 +4,7 @@ import { CryptoService } from "../../kernel/crypto/crypto.service";
 import { AuditService } from "../../kernel/audit/audit.service";
 import { OutboxService } from "../../kernel/outbox/outbox.service";
 import type { JwtPayload } from "../iam/auth.types";
+import type { PartyStatus, PartyType } from "@prisma/client";
 
 /** 高敏字段清单：读取必须走穿透审批（M19 FR-19-02） */
 const HIGH_SENSITIVITY_FIELDS = new Set(["taxId", "registrationNo", "legalRep", "address"]);
@@ -31,19 +32,29 @@ export class PartyService {
   }
 
   /**
-   * 入驻审核队列：管理员按可见性矩阵可见真实公司名与证书（初稿 §11.2），
+   * 管理端主体列表：默认入驻审核队列（PENDING），status=ALL 时为全量名录。
+   * 管理员按可见性矩阵可见真实公司名与证书（初稿 §11.2），
    * 每次查看整批留一条审计（含涉及的代码清单）。
    */
-  async listPending(page: number, pageSize: number, actor: JwtPayload) {
+  async listParties(
+    filters: { status?: string; partyType?: string; page: number; pageSize: number },
+    actor: JwtPayload,
+  ) {
+    const status = filters.status ?? "PENDING";
+    const where = {
+      deletedAt: null,
+      ...(status === "ALL" ? {} : { status: status as PartyStatus }),
+      ...(filters.partyType ? { partyType: filters.partyType as PartyType } : {}),
+    };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.organization.findMany({
-        where: { status: "PENDING", deletedAt: null },
-        orderBy: { createdAt: "asc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        where,
+        orderBy: { createdAt: status === "PENDING" ? "asc" : "desc" },
+        skip: (filters.page - 1) * filters.pageSize,
+        take: filters.pageSize,
         include: { certificates: { where: { deletedAt: null } }, contacts: { where: { deletedAt: null }, take: 1, orderBy: { isPrimary: "desc" } } },
       }),
-      this.prisma.organization.count({ where: { status: "PENDING", deletedAt: null } }),
+      this.prisma.organization.count({ where }),
     ]);
     if (rows.length > 0) {
       await this.audit.log({
@@ -51,14 +62,18 @@ export class PartyService {
         actorRole: actor.roles.join(","),
         action: "VIEW_SENSITIVE",
         targetType: "Organization",
-        diff: { scene: "ONBOARDING_REVIEW_QUEUE", codes: rows.map((o) => o.publicCode) },
-        reason: "入驻审核",
+        diff: {
+          scene: status === "PENDING" ? "ONBOARDING_REVIEW_QUEUE" : "PARTY_DIRECTORY",
+          codes: rows.map((o) => o.publicCode),
+        },
+        reason: status === "PENDING" ? "入驻审核" : "主体名录查看",
       });
     }
     return {
       data: rows.map((o) => ({
         publicCode: o.publicCode,
         partyType: o.partyType,
+        status: o.status,
         countryIso2: o.countryIso2,
         companyName: this.crypto.decrypt(o.legalNameEnc),
         registrationNo: o.registrationNoEnc ? this.crypto.decrypt(o.registrationNoEnc) : null,
@@ -66,8 +81,9 @@ export class PartyService {
         contactName: o.contacts[0]?.nameEnc ? this.crypto.decrypt(o.contacts[0].nameEnc) : null,
         certificates: o.certificates.map((c) => ({ certType: c.certType, certNo: c.certNo, expiryDate: c.expiryDate, status: c.status })),
         submittedAt: o.createdAt,
+        approvedAt: o.approvedAt,
       })),
-      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+      meta: { page: filters.page, pageSize: filters.pageSize, total, totalPages: Math.ceil(total / filters.pageSize) },
     };
   }
 

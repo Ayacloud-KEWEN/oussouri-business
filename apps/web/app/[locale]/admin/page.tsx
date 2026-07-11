@@ -1,12 +1,13 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, interpolate } from "@/lib/i18n";
 import { api } from "@/lib/api";
 
 interface PendingParty {
   publicCode: string;
   partyType: string;
+  status: string;
   countryIso2: string;
   companyName: string;
   registrationNo: string | null;
@@ -36,21 +37,30 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
   const [pending, setPending] = useState<PendingParty[]>([]);
   const [pendingProducts, setPendingProducts] = useState<PendingProduct[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [directory, setDirectory] = useState<PendingParty[]>([]);
+  const [directoryTotal, setDirectoryTotal] = useState(0);
+  const [typeFilter, setTypeFilter] = useState<"" | "SUPPLIER" | "BUYER">("");
 
   const refresh = useCallback(async () => {
     // 失败时保留旧数据并提示，不把错误伪装成空列表（曾导致"审批任务消失"）
     try {
-      const [parties, products] = await Promise.all([
+      const [parties, products, all] = await Promise.all([
         api<{ data: PendingParty[] }>("GET", "/admin/parties?page=1&pageSize=50"),
         api<PendingProduct[]>("GET", "/admin/products/pending"),
+        api<{ data: PendingParty[]; meta: { total: number } }>(
+          "GET",
+          `/admin/parties?status=ALL&page=1&pageSize=100${typeFilter ? `&partyType=${typeFilter}` : ""}`,
+        ),
       ]);
       setPending(parties.data);
       setPendingProducts(products);
+      setDirectory(all.data);
+      setDirectoryTotal(all.meta.total);
       setMessage(null);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : dict.common.error);
     }
-  }, [dict.common.error]);
+  }, [dict.common.error, typeFilter]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -108,6 +118,66 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      {/* ===== 主体名录（全部供应商与买家） ===== */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{t.directory}</h2>
+          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{t.directoryNote}</span>
+          <span className="ml-auto text-xs" style={{ color: "var(--color-muted)" }}>
+            {interpolate(t.totalCount, { total: String(directoryTotal) })}
+          </span>
+        </div>
+        <div className="flex gap-2 text-sm">
+          {([["", t.filterAll], ["SUPPLIER", t.filterSuppliers], ["BUYER", t.filterBuyers]] as const).map(([value, label]) => (
+            <button
+              key={value}
+              className={`btn ${typeFilter === value ? "btn-primary" : "btn-outline"}`}
+              onClick={() => setTypeFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {directory.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--color-muted)" }}>{t.empty}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs" style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}>
+                  <th className="py-2 pr-4">#</th>
+                  <th className="py-2 pr-4">{t.company}</th>
+                  <th className="py-2 pr-4">{dict.common.status}</th>
+                  <th className="py-2 pr-4">{t.certs}</th>
+                  <th className="py-2 pr-4">{t.registeredAt}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {directory.map((p) => (
+                  <tr key={p.publicCode} className="border-b" style={{ borderColor: "var(--color-border)" }}>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      <span className="font-mono">{p.publicCode}</span>{" "}
+                      <span className="badge">{p.partyType === "SUPPLIER" ? t.filterSuppliers : t.filterBuyers}</span>
+                    </td>
+                    <td className="py-2 pr-4">{p.companyName} <span style={{ color: "var(--color-muted)" }}>({p.countryIso2})</span></td>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      <span
+                        className="badge"
+                        style={p.status === "ACTIVE" ? { background: "var(--color-accent-soft)", color: "var(--color-accent)" } : {}}
+                      >
+                        {(t.statusLabels as Record<string, string>)[p.status] ?? p.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-4">{p.certificates.length === 0 ? "—" : p.certificates.map((c) => c.certType).join(" · ")}</td>
+                    <td className="py-2 pr-4 whitespace-nowrap" style={{ color: "var(--color-muted)" }}>{p.submittedAt.slice(0, 10)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

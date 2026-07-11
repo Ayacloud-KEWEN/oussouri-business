@@ -42,8 +42,19 @@ export class PartyController {
 
   @Roles("ADMIN")
   @Get("admin/parties")
-  listPending(@Query("page") page = "1", @Query("pageSize") pageSize = "20", @CurrentUser() user?: JwtPayload) {
-    return this.party.listPending(Number(page), Math.min(Number(pageSize), 100), user!);
+  listParties(
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+    @Query("status") status?: string,
+    @Query("partyType") partyType?: string,
+    @CurrentUser() user?: JwtPayload,
+  ) {
+    if (status && !["ALL", "PENDING", "ACTIVE", "SUSPENDED", "INACTIVE"].includes(status)) status = undefined;
+    if (partyType && !["SUPPLIER", "BUYER"].includes(partyType)) partyType = undefined;
+    return this.party.listParties(
+      { status, partyType, page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
+      user!,
+    );
   }
 
   @Roles("ADMIN")
