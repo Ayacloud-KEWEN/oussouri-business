@@ -1,13 +1,13 @@
 # HANDOFF — 新会话接续开发指南
 
-> 更新：2026-07-10（每次大批次交付后更新本文件）
+> 更新：2026-07-11（每次大批次交付后更新本文件）
 > 用途：在新的 Claude 会话/新开发者接手时，读完本文即可继续开发，无需翻聊天记录。
 
 ---
 
 ## 1. 一句话现状
 
-**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。下一步开发是路标 R1（真实收款能力）。
+**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。R2 已完成前两批（账号安全批：忘记/修改密码 + httpOnly cookie 会话 + 内部角色 TOTP 2FA；实时与搜索批：WS 通知推送 + 全文搜索）；R2 剩余（翻译管道批 / 后台与风控批）与 R1（真实收款）待做，顺序由用户定。
 
 ## 2. 必读文档（按此顺序）
 
@@ -46,9 +46,18 @@ pnpm --filter @oussouri/web build
 
 提交信息英文、结尾 Co-Authored-By（见 git log 惯例）；**多行提交信息用 `git commit -F 文件`**（PowerShell 内嵌引号会炸）；推送 origin main（仓库公开：github.com/Ayacloud-KEWEN/oussouri-business）。
 
-## 5. 下一步：路标 R1（用户已确认优先级）
+## 5. 下一步
 
-按 development-guide §9 的 R1 表执行，建议顺序与要点：
+**R2 已交付（2026-07-11，本地已提交）**：
+- 忘记/修改密码（PasswordResetToken 一次性令牌 + MailPort 日志适配器，SMTP 等 R1-4）
+- httpOnly cookie 会话（`oussouri_at`/`oussouri_rt`；Guard 兼容 Bearer 头，冒烟脚本不受影响；前端 401 自动刷新一次）
+- 内部角色 TOTP 2FA（零依赖 RFC 6238 实现 `iam/totp.ts`，登录挑战 5 分钟票据；绑定需首码验证；/account 页管理）
+- WS 实时通知（`notification.gateway.ts` 挂 upgrade 事件于 `/v1/ws`，cookie 或 ?token= 鉴权；header 铃铛红点三语）
+- 产品搜索（`/products?q=`：tsvector + trigram + 中文逐词 ILIKE；EmbeddingPort 已留 OpenAI 兼容适配器，配 `EMBEDDING_API_*` 即启 pgvector 语义，DeepSeek 无 embedding API）
+
+**R2 剩余**：AI 翻译管道（DeepSeek 机翻→人工复核）｜可见性策略数据化拦截器｜管理后台补齐（翻译复核队列/佣金配置/风控看板/审计检索）。
+
+**R1（真实收款）**，按 development-guide §9 的 R1 表执行，建议顺序与要点：
 
 | 项 | 落点提示 |
 |---|---|
