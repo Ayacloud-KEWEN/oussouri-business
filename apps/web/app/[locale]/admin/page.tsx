@@ -39,7 +39,11 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
   const [message, setMessage] = useState<string | null>(null);
   const [directory, setDirectory] = useState<PendingParty[]>([]);
   const [directoryTotal, setDirectoryTotal] = useState(0);
+  const [directoryPages, setDirectoryPages] = useState(1);
+  const [dirPage, setDirPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"" | "SUPPLIER" | "BUYER">("");
+
+  const DIR_PAGE_SIZE = 20;
 
   const refresh = useCallback(async () => {
     // 失败时保留旧数据并提示，不把错误伪装成空列表（曾导致"审批任务消失"）
@@ -47,20 +51,21 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
       const [parties, products, all] = await Promise.all([
         api<{ data: PendingParty[] }>("GET", "/admin/parties?page=1&pageSize=50"),
         api<PendingProduct[]>("GET", "/admin/products/pending"),
-        api<{ data: PendingParty[]; meta: { total: number } }>(
+        api<{ data: PendingParty[]; meta: { total: number; totalPages: number } }>(
           "GET",
-          `/admin/parties?status=ALL&page=1&pageSize=100${typeFilter ? `&partyType=${typeFilter}` : ""}`,
+          `/admin/parties?status=ALL&page=${dirPage}&pageSize=${DIR_PAGE_SIZE}${typeFilter ? `&partyType=${typeFilter}` : ""}`,
         ),
       ]);
       setPending(parties.data);
       setPendingProducts(products);
       setDirectory(all.data);
       setDirectoryTotal(all.meta.total);
+      setDirectoryPages(Math.max(all.meta.totalPages, 1));
       setMessage(null);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : dict.common.error);
     }
-  }, [dict.common.error, typeFilter]);
+  }, [dict.common.error, typeFilter, dirPage]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -136,7 +141,10 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
             <button
               key={value}
               className={`btn ${typeFilter === value ? "btn-primary" : "btn-outline"}`}
-              onClick={() => setTypeFilter(value)}
+              onClick={() => {
+                setTypeFilter(value);
+                setDirPage(1);
+              }}
             >
               {label}
             </button>
@@ -178,6 +186,19 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {directoryPages > 1 && (
+          <div className="flex items-center gap-3 text-sm">
+            <button className="btn btn-outline" disabled={dirPage <= 1} onClick={() => setDirPage((p) => p - 1)}>
+              {t.prevPage}
+            </button>
+            <span style={{ color: "var(--color-muted)" }}>
+              {interpolate(t.pageOf, { page: String(dirPage), totalPages: String(directoryPages) })}
+            </span>
+            <button className="btn btn-outline" disabled={dirPage >= directoryPages} onClick={() => setDirPage((p) => p + 1)}>
+              {t.nextPage}
+            </button>
           </div>
         )}
       </section>
