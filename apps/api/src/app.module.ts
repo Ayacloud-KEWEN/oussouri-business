@@ -20,6 +20,8 @@ import { FulfillmentModule } from "./modules/fulfillment/fulfillment.module";
 import { TraceabilityModule } from "./modules/traceability/traceability.module";
 import { FilesModule } from "./modules/files/files.module";
 import { I18nModule } from "./modules/i18n/i18n.module";
+import { APP_INTERCEPTOR } from "@nestjs/core";
+import { VisibilityInterceptor } from "./kernel/visibility/visibility.interceptor";
 
 @Module({
   imports: [
@@ -43,6 +45,9 @@ import { I18nModule } from "./modules/i18n/i18n.module";
     I18nModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: VisibilityInterceptor },
+  ],
 })
 export class AppModule {}

@@ -16,11 +16,21 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
-    if (isPublic) return true;
     const req = context.switchToHttp().getRequest();
     const header: string | undefined = req.headers?.authorization;
     // Bearer 头优先（脚本/服务端），浏览器端走 httpOnly cookie
     const token = header?.startsWith("Bearer ") ? header.slice(7) : readCookie(req, ACCESS_COOKIE);
+    if (isPublic) {
+      // 公共路由也尽力解析身份（可见性策略/差异化视图用），失败不拒绝
+      if (token) {
+        try {
+          req.user = await this.jwt.verifyAsync<JwtPayload>(token);
+        } catch {
+          /* 匿名继续 */
+        }
+      }
+      return true;
+    }
     if (!token) throw new UnauthorizedException({ code: "AUTH_TOKEN_EXPIRED", detail: "缺少访问令牌" });
     try {
       req.user = await this.jwt.verifyAsync<JwtPayload>(token);

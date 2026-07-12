@@ -6,9 +6,12 @@ import { OutboxService } from "./outbox/outbox.service";
 import { OutboxDispatcher } from "./outbox/outbox.dispatcher";
 import { StateMachineService } from "./state-machine/state-machine.service";
 import { PiiFilterService } from "./pii/pii-filter.service";
+import { VisibilityService } from "./visibility/visibility.service";
+import { VisibilityController } from "./visibility/visibility.controller";
 
 @Global()
 @Module({
+  controllers: [VisibilityController],
   providers: [
     CryptoService,
     CodeGeneratorService,
@@ -17,7 +20,8 @@ import { PiiFilterService } from "./pii/pii-filter.service";
     OutboxDispatcher,
     StateMachineService,
     PiiFilterService,
+    VisibilityService,
   ],
-  exports: [CryptoService, CodeGeneratorService, AuditService, OutboxService, StateMachineService, PiiFilterService],
+  exports: [CryptoService, CodeGeneratorService, AuditService, OutboxService, StateMachineService, PiiFilterService, VisibilityService],
 })
 export class KernelModule {}

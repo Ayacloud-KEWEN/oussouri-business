@@ -6,6 +6,7 @@ import {
 } from "class-validator";
 import { CatalogService } from "./catalog.service";
 import { Public } from "../iam/jwt-auth.guard";
+import { VisibilityResource } from "../../kernel/visibility/visibility.interceptor";
 import { CurrentUser, Roles } from "../iam/roles.guard";
 import type { JwtPayload } from "../iam/auth.types";
 
@@ -62,6 +63,7 @@ export class CatalogController {
   constructor(private readonly catalog: CatalogService) {}
 
   @Public()
+  @VisibilityResource("Product")
   @Get("products")
   list(
     @Query("page") page = "1",
@@ -80,6 +82,7 @@ export class CatalogController {
   }
 
   @Public()
+  @VisibilityResource("Product")
   @Get("products/:code")
   get(
     @Param("code") code: string,
