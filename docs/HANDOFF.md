@@ -1,13 +1,13 @@
 # HANDOFF — 新会话接续开发指南
 
-> 更新：2026-07-11（每次大批次交付后更新本文件）
+> 更新：2026-07-12（每次大批次交付后更新本文件）
 > 用途：在新的 Claude 会话/新开发者接手时，读完本文即可继续开发，无需翻聊天记录。
 
 ---
 
 ## 1. 一句话现状
 
-**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。R2 已完成前两批（账号安全批：忘记/修改密码 + httpOnly cookie 会话 + 内部角色 TOTP 2FA；实时与搜索批：WS 通知推送 + 全文搜索）；R2 剩余（翻译管道批 / 后台与风控批）与 R1（真实收款）待做，顺序由用户定。
+**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。**R2 全部完成**（账号安全批：忘记/修改密码 + httpOnly cookie 会话 + TOTP 2FA；实时与搜索批：WS 通知推送 + 全文搜索；翻译管道：DeepSeek 机翻→人工复核；后台与风控批：可见性策略拦截器 + 主体名录 + 佣金配置/风控看板/审计检索）。下一步 R1（真实收款）。
 
 ## 2. 必读文档（按此顺序）
 
@@ -55,9 +55,13 @@ pnpm --filter @oussouri/web build
 - WS 实时通知（`notification.gateway.ts` 挂 upgrade 事件于 `/v1/ws`，cookie 或 ?token= 鉴权；header 铃铛红点三语）
 - 产品搜索（`/products?q=`：tsvector + trigram + 中文逐词 ILIKE；EmbeddingPort 已留 OpenAI 兼容适配器，配 `EMBEDDING_API_*` 即启 pgvector 语义，DeepSeek 无 embedding API）
 
-**R2 剩余**：AI 翻译管道（DeepSeek 机翻→人工复核）｜可见性策略数据化拦截器｜管理后台补齐（翻译复核队列/佣金配置/风控看板/审计检索）。
+**R2 批次 3+4 已交付（2026-07-12）**：
+- AI 翻译管道：`modules/i18n/`（LlmPort：DeepSeek 适配器，占位 key 自动降级 Fake；ProductPublished 触发机翻草稿，出站先过 PiiFilter；`/admin/translations` 复核；公开目录 `?locale=` 只露 REVIEWED 译文）
+- 可见性策略拦截器：`kernel/visibility/`（表驱动 DENY/MASK，@VisibilityResource 标注启用，60s 缓存；`/admin/visibility-policies` SUPER_ADMIN CRUD）；JwtAuthGuard 公共路由也尽力解析身份
+- 管理后台补齐：主体名录（全部供采+分页）｜佣金规则 `/admin/commission-rules`（ADMIN/FINANCE；下单按 priority 匹配、无规则回退 8%）｜PII 拦截看板 `/admin/risk/blocks`｜审计检索 `/admin/audit`（SUPER_ADMIN）
+- 注意：本地 `next build` 前必须停 dev server（.next 互写会坏，OneDrive 加剧）
 
-**R1（真实收款）**，按 development-guide §9 的 R1 表执行，建议顺序与要点：
+**下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行，建议顺序与要点：
 
 | 项 | 落点提示 |
 |---|---|

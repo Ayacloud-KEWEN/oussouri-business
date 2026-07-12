@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary, interpolate } from "@/lib/i18n";
 import { api } from "@/lib/api";
+import { AdminOps } from "@/components/admin-ops";
 
 interface PendingParty {
   publicCode: string;
@@ -303,6 +304,9 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
           </div>
         )}
       </section>
+
+      {/* ===== 运营面板：佣金规则 / 风控看板 / 审计检索 ===== */}
+      <AdminOps dict={dict} />
     </div>
   );
 }

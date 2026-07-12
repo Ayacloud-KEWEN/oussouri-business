@@ -8,10 +8,11 @@ import { StateMachineService } from "./state-machine/state-machine.service";
 import { PiiFilterService } from "./pii/pii-filter.service";
 import { VisibilityService } from "./visibility/visibility.service";
 import { VisibilityController } from "./visibility/visibility.controller";
+import { AuditController } from "./audit/audit.controller";
 
 @Global()
 @Module({
-  controllers: [VisibilityController],
+  controllers: [VisibilityController, AuditController],
   providers: [
     CryptoService,
     CodeGeneratorService,
