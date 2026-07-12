@@ -17,6 +17,16 @@ interface PendingParty {
   submittedAt: string;
 }
 
+interface TranslationDraft {
+  id: string;
+  entityCode: string;
+  field: string;
+  locale: string;
+  value: string;
+  sourceLocale: string | null;
+  sourceText: string | null;
+}
+
 interface PendingProduct {
   code: string;
   name: string;
@@ -42,25 +52,29 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
   const [directoryPages, setDirectoryPages] = useState(1);
   const [dirPage, setDirPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"" | "SUPPLIER" | "BUYER">("");
+  const [drafts, setDrafts] = useState<TranslationDraft[]>([]);
+  const [draftEdits, setDraftEdits] = useState<Record<string, string>>({});
 
   const DIR_PAGE_SIZE = 20;
 
   const refresh = useCallback(async () => {
     // 失败时保留旧数据并提示，不把错误伪装成空列表（曾导致"审批任务消失"）
     try {
-      const [parties, products, all] = await Promise.all([
+      const [parties, products, all, tr] = await Promise.all([
         api<{ data: PendingParty[] }>("GET", "/admin/parties?page=1&pageSize=50"),
         api<PendingProduct[]>("GET", "/admin/products/pending"),
         api<{ data: PendingParty[]; meta: { total: number; totalPages: number } }>(
           "GET",
           `/admin/parties?status=ALL&page=${dirPage}&pageSize=${DIR_PAGE_SIZE}${typeFilter ? `&partyType=${typeFilter}` : ""}`,
         ),
+        api<{ data: TranslationDraft[] }>("GET", "/admin/translations?status=MACHINE_DRAFT&pageSize=20"),
       ]);
       setPending(parties.data);
       setPendingProducts(products);
       setDirectory(all.data);
       setDirectoryTotal(all.meta.total);
       setDirectoryPages(Math.max(all.meta.totalPages, 1));
+      setDrafts(tr.data);
       setMessage(null);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : dict.common.error);
@@ -199,6 +213,48 @@ export default function AdminPage({ params }: { params: Promise<{ locale: string
             <button className="btn btn-outline" disabled={dirPage >= directoryPages} onClick={() => setDirPage((p) => p + 1)}>
               {t.nextPage}
             </button>
+          </div>
+        )}
+      </section>
+
+      {/* ===== 翻译复核（机翻草稿 → 批准/修改） ===== */}
+      <section className="space-y-3">
+        <div className="flex items-baseline gap-3">
+          <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{t.translations}</h2>
+          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{t.translationsNote}</span>
+        </div>
+        {drafts.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--color-muted)" }}>{t.empty}</p>
+        ) : (
+          <div className="space-y-3">
+            {drafts.map((d) => (
+              <div key={d.id} className="card space-y-2 text-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-mono">{d.entityCode}</span>
+                  <span className="badge">{d.field}</span>
+                  <span className="badge">{d.sourceLocale ?? "?"} → {d.locale}</span>
+                  <button
+                    className="btn btn-primary ml-auto"
+                    onClick={() =>
+                      act(() =>
+                        api("POST", `/admin/translations/${d.id}/review`, draftEdits[d.id] !== undefined && draftEdits[d.id] !== d.value ? { value: draftEdits[d.id] } : {}),
+                      )
+                    }
+                  >
+                    {t.approveTranslation}
+                  </button>
+                </div>
+                <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+                  {t.sourceText}: {d.sourceText ?? "—"}
+                </p>
+                <textarea
+                  className="input w-full"
+                  rows={2}
+                  value={draftEdits[d.id] ?? d.value}
+                  onChange={(e) => setDraftEdits((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                />
+              </div>
+            ))}
           </div>
         )}
       </section>

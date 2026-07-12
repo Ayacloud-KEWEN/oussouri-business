@@ -53,6 +53,10 @@ class ReviewDto {
   @IsOptional() @IsString() @MaxLength(500) reasons?: string;
 }
 
+function normalizeLocale(locale?: string): string | undefined {
+  return locale && ["zh-CN", "en", "fr"].includes(locale) ? locale : undefined;
+}
+
 @Controller()
 export class CatalogController {
   constructor(private readonly catalog: CatalogService) {}
@@ -65,19 +69,24 @@ export class CatalogController {
     @Query("filter[category]") category?: string,
     @Query("filter[species]") species?: string,
     @Query("q") q?: string,
+    @Query("locale") locale?: string,
     @Req() req?: { headers: Record<string, string | undefined> },
   ) {
     const authenticated = Boolean(req?.headers?.authorization);
     return this.catalog.listPublic(
-      { category, species, q, page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
+      { category, species, q, locale: normalizeLocale(locale), page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
       authenticated,
     );
   }
 
   @Public()
   @Get("products/:code")
-  get(@Param("code") code: string, @Req() req?: { headers: Record<string, string | undefined> }) {
-    return this.catalog.getPublic(code, Boolean(req?.headers?.authorization));
+  get(
+    @Param("code") code: string,
+    @Query("locale") locale?: string,
+    @Req() req?: { headers: Record<string, string | undefined> },
+  ) {
+    return this.catalog.getPublic(code, Boolean(req?.headers?.authorization), normalizeLocale(locale));
   }
 
   @Roles("SUPPLIER")

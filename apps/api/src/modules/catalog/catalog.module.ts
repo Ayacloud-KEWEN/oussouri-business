@@ -5,8 +5,10 @@ import { CatalogController } from "./catalog.controller";
 import { MarketController } from "./market.controller";
 import { EmbeddingPort } from "./embedding.port";
 import { NullEmbeddingAdapter, RestEmbeddingAdapter } from "./embedding.adapters";
+import { I18nModule } from "../i18n/i18n.module";
 
 @Module({
+  imports: [I18nModule],
   controllers: [CatalogController, MarketController],
   providers: [
     CatalogService,

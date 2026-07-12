@@ -5,6 +5,7 @@ import { CodeGeneratorService } from "../../kernel/codegen/code-generator.servic
 import { AuditService } from "../../kernel/audit/audit.service";
 import { OutboxService } from "../../kernel/outbox/outbox.service";
 import { EmbeddingPort } from "./embedding.port";
+import { TranslationService } from "../i18n/translation.service";
 import type { JwtPayload } from "../iam/auth.types";
 
 export interface CreateProductInput {
@@ -35,12 +36,13 @@ export class CatalogService {
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
     private readonly embedding: EmbeddingPort,
+    private readonly translation: TranslationService,
   ) {}
 
   // ---------- 公开目录（身份防火墙：仅供应商代码） ----------
 
   async listPublic(
-    filters: { category?: string; species?: string; q?: string; page: number; pageSize: number },
+    filters: { category?: string; species?: string; q?: string; locale?: string; page: number; pageSize: number },
     authenticated: boolean,
   ) {
     const where: Prisma.ProductWhereInput = {
@@ -79,8 +81,11 @@ export class CatalogService {
           .slice((filters.page - 1) * filters.pageSize, filters.page * filters.pageSize)
       : rows;
     const supplierCodes = await this.supplierCodeMap(ordered.map((r) => r.supplierOrgId));
+    const translations = filters.locale
+      ? await this.translation.reviewedFor("Product", ordered.map((r) => r.id), filters.locale)
+      : new Map<string, Map<string, string>>();
     return {
-      data: ordered.map((p) => this.toPublicView(p, supplierCodes, authenticated)),
+      data: ordered.map((p) => this.toPublicView(p, supplierCodes, authenticated, translations.get(p.id))),
       meta: { page: filters.page, pageSize: filters.pageSize, total, totalPages: Math.ceil(total / filters.pageSize) },
     };
   }
@@ -124,7 +129,7 @@ export class CatalogService {
     return rows.map((r) => r.id);
   }
 
-  async getPublic(publicCode: string, authenticated: boolean) {
+  async getPublic(publicCode: string, authenticated: boolean, locale?: string) {
     const product = await this.prisma.product.findFirst({
       where: { publicCode, status: "ACTIVE", deletedAt: null },
       include: {
@@ -134,7 +139,8 @@ export class CatalogService {
     });
     if (!product) throw new NotFoundException({ code: "NOT_FOUND", detail: "产品不存在" });
     const supplierCodes = await this.supplierCodeMap([product.supplierOrgId]);
-    return this.toPublicView(product, supplierCodes, authenticated);
+    const translations = locale ? await this.translation.reviewedFor("Product", [product.id], locale) : undefined;
+    return this.toPublicView(product, supplierCodes, authenticated, translations?.get(product.id));
   }
 
   private async supplierCodeMap(orgIds: string[]): Promise<Map<string, string>> {
@@ -150,11 +156,12 @@ export class CatalogService {
     product: Prisma.ProductGetPayload<{ include: { skus: { include: { priceTiers: true } }; media: true } }>,
     supplierCodes: Map<string, string>,
     authenticated: boolean,
+    translated?: Map<string, string>,
   ) {
     return {
       code: product.publicCode,
       image: product.media[0] ? `/api/v1/files/${product.media[0].fileKey}` : null,
-      name: product.name,
+      name: translated?.get("name") ?? product.name,
       category: product.categoryCode,
       species: product.speciesCode,
       grade: product.gradeCode,

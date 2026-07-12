@@ -17,7 +17,7 @@ interface PublicProduct {
 export default async function ProductPage({ params }: { params: Promise<{ locale: string; code: string }> }) {
   const { locale, code } = await params;
   const dict = getDictionary(locale);
-  const product = await serverApi<PublicProduct>(`/products/${code}`);
+  const product = await serverApi<PublicProduct>(`/products/${code}?locale=${encodeURIComponent(locale)}`);
   if (!product) return <p>{dict.market.empty}</p>;
 
   return (

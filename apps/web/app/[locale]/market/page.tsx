@@ -31,7 +31,7 @@ export default async function MarketPage({
   const { q } = await searchParams;
   const dict = getDictionary(locale);
   const query = q?.trim() ? `&q=${encodeURIComponent(q.trim())}` : "";
-  const result = await serverApi<{ data: PublicProduct[] }>(`/products?pageSize=50${query}`);
+  const result = await serverApi<{ data: PublicProduct[] }>(`/products?pageSize=50&locale=${encodeURIComponent(locale)}${query}`);
   const products = result?.data ?? [];
 
   return (
