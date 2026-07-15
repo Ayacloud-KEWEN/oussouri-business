@@ -1,6 +1,6 @@
 # HANDOFF — 新会话接续开发指南
 
-> 更新：2026-07-12（每次大批次交付后更新本文件）
+> 更新：2026-07-15（每次大批次交付后更新本文件）
 > 用途：在新的 Claude 会话/新开发者接手时，读完本文即可继续开发，无需翻聊天记录。
 
 ---
@@ -61,7 +61,13 @@ pnpm --filter @oussouri/web build
 - 管理后台补齐：主体名录（全部供采+分页）｜佣金规则 `/admin/commission-rules`（ADMIN/FINANCE；下单按 priority 匹配、无规则回退 8%）｜PII 拦截看板 `/admin/risk/blocks`｜审计检索 `/admin/audit`（SUPER_ADMIN）
 - 注意：本地 `next build` 前必须停 dev server（.next 互写会坏，OneDrive 加剧）
 
-**下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行，建议顺序与要点：
+**2026-07-15 批次已交付**：
+- **HZB 真实案例入库**：50KG 真实交易（合同 HZBZLH20251008 → 订单 ORD-20260715-00112，COMPLETED）经 `scripts/seed-hzb-case.ts` 幂等导入本地与 VPS；原件 PDF 归档 `uploads/case-docs/HZB/`（HZB/ 目录已 gitignore，含银行信息勿入库）
+- **外贸教学文档** docs/caviar-trade-tutorial.md（十步实操 + 平台双侧操作指引，R1.5-5 待上站）
+- 修复：目录批发价对 cookie 会话失效（改用 `@CurrentUser()` 判定 + SSR 转发 cookie）；导航按角色路由（RFQ 大厅/首页 CTA）；原产地模块增强（湖南东江湖/云南 + 三语产区介绍 + line-clamp 排版）；首页新增「产业与市场洞察」版块
+- **复盘产出 R1.5 批次**（development-guide §9）：分期付款/框架合同/CITES 多物种行/样品单/知识中心/首页数据真实化
+
+**下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 可穿插小步交付），建议顺序与要点：
 
 | 项 | 落点提示 |
 |---|---|
@@ -82,6 +88,8 @@ pnpm --filter @oussouri/web build
 5. Next standalone 不含 public/、rewrites 构建期固化 —— 静态资源改动用生产镜像验证。
 6. Windows：不用 PowerShell 改源码文件；Docker Desktop 常掉线先 `docker info` 探活。
 7. 用户的沟通语言是中文；对用户的 VPS 操作给完整可粘贴命令并预告耗时（构建被 Ctrl+C 打断过一次）。
+8. **VPS 环境与仓库有本地差异**：`.env.production` 里 `API_PORT=3100`（容器内 API 监听 3100 而非 3001，宿主映射 127.0.0.1:3101→3100）；容器内跑脚本用 `-e DEMO_API_BASE=http://127.0.0.1:3100/v1`。
+9. 公共接口做登录差异化视图（如批发价）一律用 Guard 解析的 `@CurrentUser()` 判定，兼容 Bearer 与 httpOnly cookie；`launch.json` 的 api 配置跑 `node dist/main.js`，改 API 源码后须 `pnpm --filter @oussouri/api build` 再重启预览。
 
 ## 7. 未合并的已知琐碎项
 

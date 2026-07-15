@@ -123,7 +123,7 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 **测试基线**：单测 32 + E2E 冒烟 76 项（29/13/17/17），提交前全绿为硬性要求。
 **当前部署**：OVH VPS + CloudPanel，`/home/oussouri/htdocs/www.oussouri.com`，见 [deployment-cloudpanel.md](deployment-cloudpanel.md)。
 
-## 9. 开发路标（Roadmap，2026-07-09 确认）
+## 9. 开发路标（Roadmap，2026-07-09 确认；2026-07-15 复盘更新）
 
 ### R1 正式收款前必备（下一批开发，P2 收尾）
 
@@ -131,15 +131,30 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 |---|---|---|---|
 | R1-1 | **Stripe Elements 收银台** | 前端真实卡支付组件 + webhook 签名验证联调 | 后端就绪，前端为模拟按钮 |
 | R1-2 | **供应商 Stripe Connect 入驻** | KYC onboarding，分账打到供应商真实账户 | 分账目前指向占位账户 |
-| R1-3 | **S3 文件真实上传** | OVH S3 预签名直传（单证/产品图）；脱敏 PDF 像素级遮盖渲染依赖此 | 仅元数据登记 |
-| R1-4 | **邮件通道（SMTP）** | 审核/支付链接/告警邮件；SPF/DKIM/DMARC | 仅站内信 |
+| R1-3 | **S3 文件真实上传** | OVH S3 预签名直传（单证/产品图）；脱敏 PDF 像素级遮盖渲染与单证原件在线预览依赖此 | 仅元数据登记；HZB 案例原件暂存 `uploads/case-docs/`（本地卷） |
+| R1-4 | **邮件通道（SMTP）** | 审核/支付链接/告警邮件；SPF/DKIM/DMARC | 仅站内信（MailPort 日志适配器已备） |
 | R1-5 | 证书到期扫描任务 | CITES/SC 临期提醒 + 过期自动下架 | 表/索引就绪，缺 cron |
 | R1-6 | 争议处理 UI | 买家发起 + 管理员裁决界面 | 后端与资金冻结逻辑就绪 |
-| R1-7 | GDPR 页面 | 隐私政策 + Cookie 同意横幅（欧盟合规硬要求） | 无 |
+| R1-7 | GDPR 补齐 | 数据导出/删除请求工作流 | 隐私页与 Cookie 横幅已上线 |
 
-### R2 体验完善（R1 后按优先级排期）
+### R1.5 真实贸易补全（2026-07-15 新增，源自 HZB 真实案例复盘）
 
-产品图片上传与展示｜忘记/修改密码｜内部角色 2FA（表已备）｜全文 + pgvector 语义搜索｜AI 翻译管道（DeepSeek 机翻草稿 → 人工复核，`EntityTranslation` 表就绪）｜WebSocket 实时推送（通知/商机红点）｜httpOnly cookie 会话（替代 localStorage）｜可见性策略数据化拦截器（`VisibilityPolicy` 表驱动）｜管理后台补齐（翻译复核队列/佣金配置/拦截风控看板/审计检索 UI）
+> 背景：50KG 真实交易（合同 HZBZLH20251008）全流程导入平台时暴露的模型差距，均为真实业务硬需求。
+> 案例数据见 `scripts/seed-hzb-case.ts` 与订单 ORD-20260715-00112；教学文档 docs/caviar-trade-tutorial.md。
+
+| # | 功能 | 说明 | 暴露场景 |
+|---|---|---|---|
+| R1.5-1 | **分期付款（milestone）** | 订单支持多笔 Payment 里程碑：见 CITES 扫描件付 50%、发货前结清尾款；托管释放按里程碑聚合 | 真实条款无法表达，导入时只能一次结清模拟 |
+| R1.5-2 | **框架合同 + 分批补充协议** | `TradeContract` 聚合（合同期/总量/±5% 浮动条款），订单挂靠合同、沉淀分批履历 | HZB 为一年期框架合同分批发货，现订单彼此孤立 |
+| R1.5-3 | **CITES 证多物种行 + 配额驾驶舱** | `CitesPermit` 拆出 permit 行表（一证多物种/多号段），供应商侧剩余配额/罐贴标号段/临期看板（与 R1-5 合并做） | 真实证书一证两物种各 25KG，被迫拆两条带后缀记录 |
+| R1.5-4 | **样品单流程** | OrderType=SAMPLE：小额免 MOQ、快递空运、样品→正式单转化跟踪（撮合漏斗指标） | 鱼子酱贸易惯例先寄样，平台无此入口 |
+| R1.5-5 | **知识中心上站** | 外贸教程（docs/caviar-trade-tutorial.md）三语发布为 `/help/academy` 栏目；后续沉淀品种百科/合规指南，SEO 获客 | 内容已备，缺页面 |
+| R1.5-6 | **首页数据真实化** | 首页行情带接入已就绪的 `/market/stats`；「产业洞察」数字改 ConfigEntry 后台可配 | 现为 portal-data 静态值 |
+
+### R2 体验完善 ✅（2026-07-11/12 全部交付）
+
+产品图片上传与展示｜忘记/修改密码｜内部角色 2FA｜全文搜索（pgvector 语义留 EMBEDDING_API_* 开关）｜AI 翻译管道（DeepSeek 机翻草稿 → 人工复核）｜WebSocket 实时推送｜httpOnly cookie 会话｜可见性策略数据化拦截器｜管理后台补齐（翻译复核/佣金配置/风控看板/审计检索）
+> 回归教训（2026-07-15）：新增「公共接口差异化视图」时，登录判定必须用 Guard 解析出的 `@CurrentUser()`（同时覆盖 Bearer 与 cookie），不要自己看 `Authorization` 头——目录批发价可见性曾因此对 cookie 会话失效。
 
 ### R3 P3 大功能（AI 完全体；表结构与状态机多数已备）
 
