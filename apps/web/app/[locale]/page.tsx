@@ -161,9 +161,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={o.img} alt={ln(o.name, locale)} className="h-16 w-24 shrink-0 rounded object-cover" />
                   <div className="min-w-0 text-xs leading-relaxed">
-                    <p className="text-sm font-medium">{ln(o.name, locale)}</p>
+                    <p className="text-sm font-medium">
+                      {ln(o.name, locale)}
+                      <span className="ml-1.5 text-[10px] font-normal" style={{ color: C.gold }}>{ln(o.region, locale)}</span>
+                    </p>
                     <p style={{ color: C.muted }}>{t.mainSpecies}: {o.species}</p>
                     <p style={{ color: C.muted }}>{t.annualOutput}: {o.outputKg} kg</p>
+                    <p className="mt-1" style={{ color: C.muted }}>{ln(o.desc, locale)}</p>
                   </div>
                 </div>
               ))}

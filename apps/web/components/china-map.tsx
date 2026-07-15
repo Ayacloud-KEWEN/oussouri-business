@@ -12,6 +12,8 @@ export const ORIGIN_PINS: Omit<MapPin, "label">[] = [
   { x: 306, y: 202, align: "right" }, // 浙江
   { x: 262, y: 194, align: "left" },  // 湖北
   { x: 258, y: 258, align: "left" },  // 广东
+  { x: 248, y: 226, align: "left" },  // 湖南（资兴·东江湖）
+  { x: 178, y: 248, align: "left" },  // 云南（会泽）
 ];
 
 const OUTLINE =
