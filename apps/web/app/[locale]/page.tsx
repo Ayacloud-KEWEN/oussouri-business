@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDictionary, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import { serverApi } from "@/lib/server-api";
-import { BUYER_DEMANDS, MARKET_INSIGHTS, ORIGINS, PLATFORM_STATS, RFQ_LIST, type LocalizedName } from "@/lib/portal-data";
+import { BUYER_DEMANDS, INDUSTRY_INSIGHTS, MARKET_INSIGHTS, ORIGINS, PLATFORM_STATS, RFQ_LIST, type LocalizedName } from "@/lib/portal-data";
 import { ChinaMap, ORIGIN_PINS } from "@/components/china-map";
 import { RfqCta } from "@/components/rfq-cta";
 
@@ -167,7 +167,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     </p>
                     <p style={{ color: C.muted }}>{t.mainSpecies}: {o.species}</p>
                     <p style={{ color: C.muted }}>{t.annualOutput}: {o.outputKg} kg</p>
-                    <p className="mt-1" style={{ color: C.muted }}>{ln(o.desc, locale)}</p>
+                    <p className="mt-1 line-clamp-2" style={{ color: C.muted }} title={ln(o.desc, locale)}>{ln(o.desc, locale)}</p>
                   </div>
                 </div>
               ))}
@@ -240,6 +240,42 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <Link href={`/${locale}/register`} style={{ color: C.gold }}>{t.viewAllRfq} ›</Link>
             </p>
           </div>
+        </section>
+
+        {/* ===== 产业与市场洞察 ===== */}
+        <section id="insights-pro" className="rounded-lg border p-4" style={{ background: C.panel, borderColor: C.border }}>
+          <div className="mb-4 flex items-baseline justify-between">
+            <h2 className="font-medium">
+              {ln(INDUSTRY_INSIGHTS.title, locale)}{" "}
+              <span className="ml-1 text-[10px] tracking-widest" style={{ color: C.muted }}>{INDUSTRY_INSIGHTS.titleEn}</span>
+            </h2>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {[INDUSTRY_INSIGHTS.supply, INDUSTRY_INSIGHTS.demand].map((panel) => (
+              <div key={panel.heading.en} className="rounded-md border p-4" style={{ borderColor: C.border, background: C.panelSoft }}>
+                <p className="mb-3 text-sm font-medium" style={{ color: C.gold }}>{ln(panel.heading, locale)}</p>
+                <div className="mb-3 grid grid-cols-2 gap-3">
+                  {panel.stats.map((s) => (
+                    <div key={s.value} className="rounded border p-2.5" style={{ borderColor: C.border }}>
+                      <p className="text-lg font-semibold" style={{ color: C.text }}>{s.value}</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: C.muted }}>{ln(s.label, locale)}</p>
+                    </div>
+                  ))}
+                </div>
+                <ul className="space-y-1.5 text-xs leading-relaxed" style={{ color: C.muted }}>
+                  {panel.notes.map((n) => (
+                    <li key={n.en} className="flex gap-1.5">
+                      <span style={{ color: C.gold }}>▸</span>
+                      <span>{ln(n, locale)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 border-t pt-2 text-[10px]" style={{ borderColor: C.border, color: C.muted }}>
+            {ln(INDUSTRY_INSIGHTS.footnote, locale)}
+          </p>
         </section>
 
         {/* ===== 服务保障带 ===== */}

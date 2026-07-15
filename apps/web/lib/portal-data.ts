@@ -99,6 +99,48 @@ export const ORIGINS = [
   },
 ];
 
+/**
+ * 产业与市场洞察（首页专业信息带）：
+ * 数据摘自公开行业报道与统计（环球时报/中新网/海关总署引述/IndexBox 2024），量级供参考。
+ */
+export const INDUSTRY_INSIGHTS = {
+  title: { "zh-CN": "产业与市场洞察", en: "Industry & Market Insights", fr: "Industrie & Marché" },
+  titleEn: "INDUSTRY & MARKET",
+  supply: {
+    heading: { "zh-CN": "中国供给侧 · 全球鱼子酱工厂", en: "China Supply · The World's Caviar Farm", fr: "Offre chinoise · La ferme à caviar du monde" },
+    stats: [
+      { value: "≈70%", label: { "zh-CN": "全球鱼子酱产自中国", en: "of global caviar is made in China", fr: "du caviar mondial produit en Chine" } },
+      { value: "275.8t", label: { "zh-CN": "2023 年中国鲟鱼子酱出口量（2019 年为 139.8t，五年近翻倍）", en: "Chinese sturgeon caviar exports in 2023 (vs 139.8t in 2019)", fr: "exportations chinoises de caviar en 2023 (139,8 t en 2019)" } },
+      { value: "14.9万t", label: { "zh-CN": "2023 年中国鲟鱼养殖产量，占全球 85% 以上", en: "sturgeon farmed in China in 2023 — over 85% of the world", fr: "d'esturgeons élevés en Chine en 2023 — plus de 85 % du monde" } },
+      { value: "7–10年", label: { "zh-CN": "一尾雌鲟从投苗到取卵的养成周期，决定了产能的稀缺性", en: "years to raise a female sturgeon to roe — why capacity stays scarce", fr: "années pour élever une femelle jusqu'aux œufs — d'où la rareté" } },
+    ],
+    notes: [
+      { "zh-CN": "主产省份：浙江（千岛湖）、湖北（清江）、云南、四川、贵州——均为水库冷水或高原冷泉水体", en: "Key provinces: Zhejiang, Hubei, Yunnan, Sichuan, Guizhou — all reservoir cold water or plateau springs", fr: "Provinces clés : Zhejiang, Hubei, Yunnan, Sichuan, Guizhou — eaux froides de réservoir ou sources d'altitude" },
+      { "zh-CN": "全部为 CITES 附录 II 人工养殖（来源代码 C），一批一证、罐罐贴标可溯源", en: "All CITES Appendix-II aquaculture (source code C): one permit per batch, every tin labelled and traceable", fr: "Aquaculture CITES annexe II (code C) : un permis par lot, chaque boîte étiquetée et traçable" },
+      { "zh-CN": "输欧工厂须列入欧盟注册名单（TRACES），随附官方兽医证书 FISH-CRUST-HC", en: "EU-bound plants must be EU-listed (TRACES) and ship with the official FISH-CRUST-HC vet certificate", fr: "Les usines export UE doivent être agréées (TRACES) avec certificat vétérinaire FISH-CRUST-HC" },
+    ],
+  },
+  demand: {
+    heading: { "zh-CN": "欧洲需求侧 · 最成熟的消费市场", en: "Europe Demand · The Most Mature Market", fr: "Demande européenne · Le marché le plus mature" },
+    stats: [
+      { value: "560t", label: { "zh-CN": "2024 年欧盟鲟鱼子酱进口量，同比 +2.9%", en: "EU sturgeon caviar imports in 2024, up 2.9% YoY", fr: "importations UE de caviar d'esturgeon en 2024, +2,9 %" } },
+      { value: "$5.46亿", label: { "zh-CN": "欧盟鲟鱼子酱市场规模（约 1,700t 消费量）", en: "EU sturgeon caviar market value (~1,700t consumed)", fr: "valeur du marché UE du caviar (~1 700 t consommées)" } },
+      { value: "法·德·意", label: { "zh-CN": "最大进口与消费国：法国、德国合计约占进口一半，意大利增长最快", en: "France & Germany take ~half of imports; Italy grows fastest", fr: "France et Allemagne : ~la moitié des importations ; l'Italie croît le plus vite" } },
+      { value: "Q4", label: { "zh-CN": "圣诞与新年季贡献全年最大销量，备货窗口在 9–11 月", en: "Christmas & New Year drive peak sales — stock up September–November", fr: "Noël et Nouvel An font le pic — approvisionnement de septembre à novembre" } },
+    ],
+    notes: [
+      { "zh-CN": "准入合规：欧盟进口关税约 20% + 双边 CITES 证书（出口国签发 + 进口国核销）", en: "Market access: ~20% EU import duty plus dual CITES permits (export + import)", fr: "Accès : ~20 % de droits UE + double permis CITES (export + import)" },
+      { "zh-CN": "渠道结构：米其林餐饮、精品零售与航空头等舱三线并进，直采与产地溯源需求上升", en: "Channels: Michelin dining, fine retail and first-class catering — with rising demand for direct, traceable sourcing", fr: "Canaux : gastronomie étoilée, épicerie fine et première classe — sourcing direct et traçable en hausse" },
+      { "zh-CN": "价格锚点：Beluga/Kaluga 高端线 €5,000+/kg，Osetra 中高端 €3,000–5,000，Baerii 大众精品 €1,000–2,000（批发口径）", en: "Wholesale anchors: Beluga/Kaluga €5,000+/kg, Osetra €3,000–5,000, Baerii €1,000–2,000", fr: "Repères de gros : Beluga/Kaluga 5 000 €+/kg, Osetra 3 000–5 000 €, Baerii 1 000–2 000 €" },
+    ],
+  },
+  footnote: {
+    "zh-CN": "数据来源：海关总署、环球时报、中新网、IndexBox（2023–2024 公开口径），仅供行业参考",
+    en: "Sources: China Customs, Global Times, China News, IndexBox (2023–2024 public data). For reference only.",
+    fr: "Sources : Douanes chinoises, Global Times, China News, IndexBox (données publiques 2023–2024). À titre indicatif.",
+  },
+};
+
 /** 买家需求：按身份防火墙原则以平台代码 + 类型展示（GBR-1） */
 export const BUYER_DEMANDS = [
   { code: "BY-000126", type: { "zh-CN": "法国 · 高端食品批发商", en: "France · Fine food wholesaler", fr: "France · Grossiste épicerie fine" }, species: "Beluga", spec: "100g+", qtyKg: 50, deliveryBy: "2026-08-15" },
