@@ -34,6 +34,12 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
 
   const roles = session?.roles ?? [];
   const isAdmin = roles.some((r) => ["ADMIN", "SUPER_ADMIN"].includes(r));
+  // 反向招标：买家去自己的 RFQ 工作台，供应商去报价台，未登录/其他角色看首页大厅版块
+  const rfqHref = roles.includes("BUYER")
+    ? `/${locale}/buyer`
+    : roles.includes("SUPPLIER")
+      ? `/${locale}/supplier`
+      : `/${locale}#rfq`;
 
   return (
     <header className="border-b" style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}>
@@ -53,9 +59,10 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
         <nav className="hidden items-center gap-4 whitespace-nowrap text-sm md:flex [&>a]:whitespace-nowrap">
           <Link className="hidden lg:inline" href={`/${locale}#insights`}>{dict.portal.navInsights}</Link>
           <Link href={`/${locale}/market`}>{dict.portal.navMarketplace}</Link>
-          <Link href={`/${locale}#rfq`}>{dict.portal.navRfq}</Link>
-          <Link className="hidden lg:inline" href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
-          <Link className="hidden lg:inline" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
+          <Link href={rfqHref}>{dict.portal.navRfq}</Link>
+          {/* 营销版块锚点用原生 <a>：整页加载后浏览器原生跳转，避免客户端路由滚动不生效 */}
+          <a className="hidden lg:inline" href={`/${locale}#origins`}>{dict.portal.navOrigins}</a>
+          <a className="hidden lg:inline" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</a>
           <Link href={`/${locale}/help`}>{dict.help.nav}</Link>
           {roles.includes("BUYER") && <Link href={`/${locale}/buyer`}>{dict.nav.buyer}</Link>}
           {roles.includes("SUPPLIER") && <Link href={`/${locale}/supplier`}>{dict.nav.supplier}</Link>}
@@ -108,9 +115,9 @@ export function Header({ locale, dict }: { locale: string; dict: Dictionary }) {
         >
           <Link className="py-1.5" href={`/${locale}#insights`}>{dict.portal.navInsights}</Link>
           <Link className="py-1.5" href={`/${locale}/market`}>{dict.portal.navMarketplace}</Link>
-          <Link className="py-1.5" href={`/${locale}#rfq`}>{dict.portal.navRfq}</Link>
-          <Link className="py-1.5" href={`/${locale}#origins`}>{dict.portal.navOrigins}</Link>
-          <Link className="py-1.5" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</Link>
+          <Link className="py-1.5" href={rfqHref}>{dict.portal.navRfq}</Link>
+          <a className="py-1.5" href={`/${locale}#origins`}>{dict.portal.navOrigins}</a>
+          <a className="py-1.5" href={`/${locale}#buyers`}>{dict.portal.navBuyers}</a>
           <Link className="py-1.5" href={`/${locale}/help`}>{dict.help.nav}</Link>
           {roles.includes("BUYER") && <Link className="py-1.5" href={`/${locale}/buyer`} style={{ color: "var(--color-accent)" }}>{dict.nav.buyer}</Link>}
           {roles.includes("SUPPLIER") && <Link className="py-1.5" href={`/${locale}/supplier`} style={{ color: "var(--color-accent)" }}>{dict.nav.supplier}</Link>}

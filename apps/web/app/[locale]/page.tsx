@@ -3,6 +3,7 @@ import { getDictionary, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n
 import { serverApi } from "@/lib/server-api";
 import { BUYER_DEMANDS, MARKET_INSIGHTS, ORIGINS, PLATFORM_STATS, RFQ_LIST, type LocalizedName } from "@/lib/portal-data";
 import { ChinaMap, ORIGIN_PINS } from "@/components/china-map";
+import { RfqCta } from "@/components/rfq-cta";
 
 interface LiveInsightRow { species: string; spec: string; origin: string; avgPriceEur: number; trend: number; listings: number }
 interface LiveInsights { updatedAt: string; live: boolean; rows: LiveInsightRow[] }
@@ -76,9 +77,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <Link href={`/${locale}/market`} className="btn" style={{ background: C.gold, color: "#14100a" }}>
                 {t.ctaMarket}
               </Link>
-              <Link href={`/${locale}/register`} className="btn" style={{ border: `1px solid ${C.border}`, color: C.text }}>
-                {t.ctaRfq}
-              </Link>
+              <RfqCta locale={locale} label={t.ctaRfq} style={{ border: `1px solid ${C.border}`, color: C.text }} />
               <Link href={`/${locale}/help`} className="btn" style={{ border: `1px solid ${C.border}`, color: C.gold }}>
                 {dict.help.nav} ›
               </Link>
