@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { Type } from "class-transformer";
 import {
   ArrayNotEmpty, IsArray, IsIn, IsISO31661Alpha2, IsNumber, IsOptional, IsPositive, IsString,
@@ -72,9 +72,10 @@ export class CatalogController {
     @Query("filter[species]") species?: string,
     @Query("q") q?: string,
     @Query("locale") locale?: string,
-    @Req() req?: { headers: Record<string, string | undefined> },
+    @CurrentUser() user?: JwtPayload,
   ) {
-    const authenticated = Boolean(req?.headers?.authorization);
+    // Guard 在公共路由上已尽力解析身份（Bearer 头或 httpOnly cookie 均可）
+    const authenticated = Boolean(user);
     return this.catalog.listPublic(
       { category, species, q, locale: normalizeLocale(locale), page: Number(page), pageSize: Math.min(Number(pageSize), 100) },
       authenticated,
@@ -87,9 +88,9 @@ export class CatalogController {
   get(
     @Param("code") code: string,
     @Query("locale") locale?: string,
-    @Req() req?: { headers: Record<string, string | undefined> },
+    @CurrentUser() user?: JwtPayload,
   ) {
-    return this.catalog.getPublic(code, Boolean(req?.headers?.authorization), normalizeLocale(locale));
+    return this.catalog.getPublic(code, Boolean(user), normalizeLocale(locale));
   }
 
   @Roles("SUPPLIER")
