@@ -1,13 +1,13 @@
 # HANDOFF — 新会话接续开发指南
 
-> 更新：2026-07-15（每次大批次交付后更新本文件）
+> 更新：2026-07-16（每次大批次交付后更新本文件）
 > 用途：在新的 Claude 会话/新开发者接手时，读完本文即可继续开发，无需翻聊天记录。
 
 ---
 
 ## 1. 一句话现状
 
-**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。**R2 全部完成**（账号安全批：忘记/修改密码 + httpOnly cookie 会话 + TOTP 2FA；实时与搜索批：WS 通知推送 + 全文搜索；翻译管道：DeepSeek 机翻→人工复核；后台与风控批：可见性策略拦截器 + 主体名录 + 佣金配置/风控看板/审计检索）。下一步 R1（真实收款）。
+**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。**R2 全部完成**（账号安全批：忘记/修改密码 + httpOnly cookie 会话 + TOTP 2FA；实时与搜索批：WS 通知推送 + 全文搜索；翻译管道：DeepSeek 机翻→人工复核；后台与风控批：可见性策略拦截器 + 主体名录 + 佣金配置/风控看板/审计检索）。**HZB 真实案例已入库**（本地 + VPS），**R1.5-5 外贸学院 / R1.5-6 首页数据真实化已交付**。下一步 R1（真实收款）+ R1.5 剩余项（分期付款/框架合同/CITES 多物种行/样品单）。
 
 ## 2. 必读文档（按此顺序）
 
@@ -67,7 +67,12 @@ pnpm --filter @oussouri/web build
 - 修复：目录批发价对 cookie 会话失效（改用 `@CurrentUser()` 判定 + SSR 转发 cookie）；导航按角色路由（RFQ 大厅/首页 CTA）；原产地模块增强（湖南东江湖/云南 + 三语产区介绍 + line-clamp 排版）；首页新增「产业与市场洞察」版块
 - **复盘产出 R1.5 批次**（development-guide §9）：分期付款/框架合同/CITES 多物种行/样品单/知识中心/首页数据真实化
 
-**下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 可穿插小步交付），建议顺序与要点：
+**2026-07-16 批次已交付（R1.5-5 / R1.5-6）**：
+- **外贸学院**：`/help/academy` 三语学院页（react-markdown + remark-gfm，元素级站点配色映射）；文章内容维护在 `apps/web/content/academy.ts`（追加 ARTICLES 数组即新增文章）；帮助页有入口卡片
+- **首页数据真实化**：平台数据带接 `/market/stats`，达阈值（供应商/买家≥50、SKU≥100、成交≥300、国家≥5，见 page.tsx `STATS_LIVE_THRESHOLD`）自动切实时并亮「实时」徽标，否则演示值+「示例数据」；产业洞察经 `GET/PUT /market/portal-config`（ConfigEntry portal/industry-insights，ADMIN 写 + 审计）覆盖，管理后台底部「门户洞察配置」JSON 编辑卡片，浅合并（title/supply/demand/footnote 顶层整体替换），null 恢复默认
+- 注意：web 新增依赖 react-markdown/remark-gfm；`.next` 目录被 dev/build 互写弄脏时（EINVAL readlink）删掉 `.next` 重新 build 即可
+
+**下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 剩余项 -1/-2/-3/-4 可穿插小步交付），建议顺序与要点：
 
 | 项 | 落点提示 |
 |---|---|
@@ -94,5 +99,5 @@ pnpm --filter @oussouri/web build
 ## 7. 未合并的已知琐碎项
 
 - `docs/demo-preparation.md` §1 表格里有用户手填的测试账号（test01–04@gmail.com），是用户自己的备忘，勿删；
-- 首页平台数据带（88+ 养殖场等）仍为营销演示值（`portal-data.ts`），`/market/stats` 实时接口已就绪未接入——等真实数据量起来再切换；
+- ~~首页平台数据带待接实时~~ 已解决（2026-07-16）：达阈值自动切换，阈值在 `page.tsx STATS_LIVE_THRESHOLD` 可调；
 - CI 已按用户要求移除（恢复参考 git 历史 733e451 之前的 `.github/workflows/`）。
