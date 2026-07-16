@@ -7,6 +7,10 @@ import { RfqCta } from "@/components/rfq-cta";
 
 interface LiveInsightRow { species: string; spec: string; origin: string; avgPriceEur: number; trend: number; listings: number }
 interface LiveInsights { updatedAt: string; live: boolean; rows: LiveInsightRow[] }
+interface LiveStats { suppliers: number; buyers: number; skus: number; deals: number; countries: number }
+
+/** 平台数据带切换阈值：真实数据达到营销可信量级前保留演示值（HANDOFF §7 决议） */
+const STATS_LIVE_THRESHOLD: LiveStats = { suppliers: 50, buyers: 50, skus: 100, deals: 300, countries: 5 };
 
 const C = {
   bg: "#0a1628",
@@ -31,7 +35,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const t = dict.portal;
 
   // 平台真实行情（M21 前哨：在售均价 + 周环比趋势）；空库回退演示数据并标注
-  const liveInsights = await serverApi<LiveInsights>("/market/insights");
+  const [liveInsights, liveStats, portalConfig] = await Promise.all([
+    serverApi<LiveInsights>("/market/insights"),
+    serverApi<LiveStats>("/market/stats"),
+    serverApi<{ insights: Partial<typeof INDUSTRY_INSIGHTS> | null }>("/market/portal-config"),
+  ]);
   const useLive = Boolean(liveInsights?.live && liveInsights.rows.length > 0);
   const insightRows = useLive
     ? liveInsights!.rows.map((r) => ({
@@ -51,6 +59,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     statFarms: t.statFarms, statBuyers: t.statBuyers, statProducts: t.statProducts,
     statDeals: t.statDeals, statCountries: t.statCountries,
   };
+  // 平台数据带：真实统计达到阈值即切换实时（R1.5-6）
+  const statsLive = Boolean(
+    liveStats &&
+    (Object.keys(STATS_LIVE_THRESHOLD) as (keyof LiveStats)[]).every((k) => liveStats[k] >= STATS_LIVE_THRESHOLD[k]),
+  );
+  const statKeyMap: Record<string, keyof LiveStats> = {
+    statFarms: "suppliers", statBuyers: "buyers", statProducts: "skus", statDeals: "deals", statCountries: "countries",
+  };
+  const statValues: Record<string, string> = Object.fromEntries(
+    PLATFORM_STATS.map((s) => [s.key, statsLive ? liveStats![statKeyMap[s.key]!].toLocaleString("en-US") : s.value]),
+  );
+
+  // 产业洞察：后台 ConfigEntry 覆盖优先，无配置回退内置默认（R1.5-6）
+  const insightsData = { ...INDUSTRY_INSIGHTS, ...(portalConfig?.insights ?? {}) };
+
   const features = [t.feature1, t.feature2, t.feature3, t.feature4, t.feature5];
   const services = [
     { title: t.svc1, desc: t.svc1Desc }, { title: t.svc2, desc: t.svc2Desc }, { title: t.svc3, desc: t.svc3Desc },
@@ -128,12 +151,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </section>
 
-        {/* ===== 平台数据带 ===== */}
-        <section className="grid grid-cols-2 gap-3 rounded-lg border p-4 md:grid-cols-5" style={{ background: C.panelSoft, borderColor: C.border }}>
+        {/* ===== 平台数据带（达到量级阈值自动切实时，R1.5-6） ===== */}
+        <section className="relative grid grid-cols-2 gap-3 rounded-lg border p-4 md:grid-cols-5" style={{ background: C.panelSoft, borderColor: C.border }}>
+          <span
+            className="absolute right-3 top-2 rounded-full px-2 py-0.5 text-[10px]"
+            style={statsLive ? { background: "#1d3a2a", color: C.up } : { background: "#2a3348", color: C.muted }}
+          >
+            {statsLive ? `● ${t.liveData}` : t.demoData}
+          </span>
           {PLATFORM_STATS.map((s) => (
             <div key={s.key} className="px-2 py-1">
               <p className="text-xs" style={{ color: C.gold }}>{statLabels[s.key]}</p>
-              <p className="text-2xl font-semibold">{s.value}</p>
+              <p className="text-2xl font-semibold">{statValues[s.key]}</p>
               <p className="text-[11px]" style={{ color: C.muted }}>{statSubs[s.key]}</p>
             </div>
           ))}
@@ -246,12 +275,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <section id="insights-pro" className="rounded-lg border p-4" style={{ background: C.panel, borderColor: C.border }}>
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="font-medium">
-              {ln(INDUSTRY_INSIGHTS.title, locale)}{" "}
-              <span className="ml-1 text-[10px] tracking-widest" style={{ color: C.muted }}>{INDUSTRY_INSIGHTS.titleEn}</span>
+              {ln(insightsData.title, locale)}{" "}
+              <span className="ml-1 text-[10px] tracking-widest" style={{ color: C.muted }}>{insightsData.titleEn}</span>
             </h2>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            {[INDUSTRY_INSIGHTS.supply, INDUSTRY_INSIGHTS.demand].map((panel) => (
+            {[insightsData.supply, insightsData.demand].map((panel) => (
               <div key={panel.heading.en} className="rounded-md border p-4" style={{ borderColor: C.border, background: C.panelSoft }}>
                 <p className="mb-3 text-sm font-medium" style={{ color: C.gold }}>{ln(panel.heading, locale)}</p>
                 <div className="mb-3 grid grid-cols-2 gap-3">
@@ -274,7 +303,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             ))}
           </div>
           <p className="mt-3 border-t pt-2 text-[10px]" style={{ borderColor: C.border, color: C.muted }}>
-            {ln(INDUSTRY_INSIGHTS.footnote, locale)}
+            {ln(insightsData.footnote, locale)}
           </p>
         </section>
 

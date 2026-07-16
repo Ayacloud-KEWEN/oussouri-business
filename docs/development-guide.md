@@ -148,8 +148,8 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 | R1.5-2 | **框架合同 + 分批补充协议** | `TradeContract` 聚合（合同期/总量/±5% 浮动条款），订单挂靠合同、沉淀分批履历 | HZB 为一年期框架合同分批发货，现订单彼此孤立 |
 | R1.5-3 | **CITES 证多物种行 + 配额驾驶舱** | `CitesPermit` 拆出 permit 行表（一证多物种/多号段），供应商侧剩余配额/罐贴标号段/临期看板（与 R1-5 合并做） | 真实证书一证两物种各 25KG，被迫拆两条带后缀记录 |
 | R1.5-4 | **样品单流程** | OrderType=SAMPLE：小额免 MOQ、快递空运、样品→正式单转化跟踪（撮合漏斗指标） | 鱼子酱贸易惯例先寄样，平台无此入口 |
-| R1.5-5 | **知识中心上站** | 外贸教程（docs/caviar-trade-tutorial.md）三语发布为 `/help/academy` 栏目；后续沉淀品种百科/合规指南，SEO 获客 | 内容已备，缺页面 |
-| R1.5-6 | **首页数据真实化** | 首页行情带接入已就绪的 `/market/stats`；「产业洞察」数字改 ConfigEntry 后台可配 | 现为 portal-data 静态值 |
+| R1.5-5 | **知识中心上站** ✅ 2026-07-16 | `/help/academy` 三语学院（react-markdown 渲染，内容在 `apps/web/content/academy.ts`，新文章追加 ARTICLES 数组） | 已交付 |
+| R1.5-6 | **首页数据真实化** ✅ 2026-07-16 | 平台数据带接 `/market/stats`（达阈值自动切实时，否则演示值+「示例数据」徽标）；产业洞察经 `ConfigEntry(portal/industry-insights)` 覆盖，管理后台「门户洞察配置」JSON 编辑 | 已交付 |
 
 ### R2 体验完善 ✅（2026-07-11/12 全部交付）
 

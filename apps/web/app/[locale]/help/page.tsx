@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getDictionary } from "@/lib/i18n";
+import { getDictionary, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import { ACADEMY, ARTICLES } from "@/content/academy";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -34,7 +35,8 @@ function Steps({ title, steps }: { title: string; steps: { t: string; d: string 
 }
 
 export default async function HelpPage({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
+  const { locale: rawLocale } = await params;
+  const locale: Locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   const dict = getDictionary(locale);
   const t = dict.help;
 
@@ -44,6 +46,17 @@ export default async function HelpPage({ params }: { params: Promise<{ locale: s
         <h1 className="text-3xl font-semibold">{t.title}</h1>
         <p style={{ color: "var(--color-muted)" }}>{t.subtitle}</p>
       </header>
+
+      {/* 外贸学院入口（R1.5-5） */}
+      <Link
+        href={`/${locale}/help/academy`}
+        className="card block space-y-1.5 border-2 transition-shadow hover:shadow-md"
+        style={{ borderColor: "var(--color-accent)" }}
+      >
+        <p className="text-xs tracking-widest" style={{ color: "var(--color-accent)" }}>📚 {ACADEMY.nav[locale]} · ACADEMY</p>
+        <h2 className="text-lg font-medium">{ARTICLES[0]!.title[locale]}</h2>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--color-muted)" }}>{ARTICLES[0]!.subtitle[locale]}</p>
+      </Link>
 
       <Steps title={t.buyerTitle} steps={t.buyerSteps} />
       <Steps title={t.supplierTitle} steps={t.supplierSteps} />

@@ -1,7 +1,14 @@
-import { Controller, Get } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Put } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../kernel/prisma/prisma.service";
+import { AuditService } from "../../kernel/audit/audit.service";
 import { Public } from "../iam/jwt-auth.guard";
+import { CurrentUser, Roles } from "../iam/roles.guard";
+import type { JwtPayload } from "../iam/auth.types";
+
+/** 门户可配置项存放于 ConfigEntry(namespace='portal')；当前仅产业洞察一项 */
+const PORTAL_NS = "portal";
+const INSIGHTS_KEY = "industry-insights";
 
 /**
  * 公开市场数据（M21 前哨，P3 接外部贸易数据前先用平台自身真实数据）：
@@ -11,7 +18,42 @@ import { Public } from "../iam/jwt-auth.guard";
  */
 @Controller("market")
 export class MarketController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** 首页「产业与市场洞察」覆盖配置（无配置时返回 null，前端回退内置默认值） */
+  @Public()
+  @Get("portal-config")
+  async portalConfig() {
+    const entry = await this.prisma.configEntry.findFirst({
+      where: { namespace: PORTAL_NS, key: INSIGHTS_KEY, deletedAt: null },
+    });
+    return { insights: entry?.value ?? null, updatedAt: entry?.updatedAt ?? null };
+  }
+
+  @Roles("ADMIN", "SUPER_ADMIN")
+  @Put("portal-config")
+  async updatePortalConfig(@Body() body: { insights?: unknown }, @CurrentUser() user: JwtPayload) {
+    if (body?.insights !== null && (typeof body?.insights !== "object" || Array.isArray(body?.insights))) {
+      throw new BadRequestException({ code: "VALIDATION_FAILED", detail: "insights 必须为 JSON 对象或 null（null 表示恢复默认）" });
+    }
+    const entry = await this.prisma.configEntry.upsert({
+      where: { namespace_key: { namespace: PORTAL_NS, key: INSIGHTS_KEY } },
+      create: { namespace: PORTAL_NS, key: INSIGHTS_KEY, value: (body.insights ?? Prisma.JsonNull) as Prisma.InputJsonValue, createdBy: user.sub },
+      update: { value: (body.insights ?? Prisma.JsonNull) as Prisma.InputJsonValue, updatedBy: user.sub, version: { increment: 1 } },
+    });
+    await this.audit.log({
+      actorId: user.sub,
+      actorRole: user.roles.join(","),
+      action: "PORTAL_CONFIG_UPDATED",
+      targetType: "ConfigEntry",
+      targetId: entry.id,
+      diff: { key: INSIGHTS_KEY, cleared: body.insights == null },
+    });
+    return { ok: true, updatedAt: entry.updatedAt };
+  }
 
   @Public()
   @Get("stats")
