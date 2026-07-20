@@ -72,6 +72,8 @@ pnpm --filter @oussouri/web build
 - **首页数据真实化**：平台数据带接 `/market/stats`，达阈值（供应商/买家≥50、SKU≥100、成交≥300、国家≥5，见 page.tsx `STATS_LIVE_THRESHOLD`）自动切实时并亮「实时」徽标，否则演示值+「示例数据」；产业洞察经 `GET/PUT /market/portal-config`（ConfigEntry portal/industry-insights，ADMIN 写 + 审计）覆盖，管理后台底部「门户洞察配置」JSON 编辑卡片，浅合并（title/supply/demand/footnote 顶层整体替换），null 恢复默认
 - 注意：web 新增依赖 react-markdown/remark-gfm；`.next` 目录被 dev/build 互写弄脏时（EINVAL readlink）删掉 `.next` 重新 build 即可
 
+**2026-07-20 增补**：第二家真实供应商**黑龙江拓派生物科技**经 `scripts/seed-tuopai-supplier.ts`（幂等，数据自包含，无需外部文件）导入：supplier-c@demo.oussouri（SP-000104，5 个养殖基地/3 联系人/2 产品 €310/€325）+ 进行中订单（合同 TP-FR-202601，52KG €16,735，30% 定金真实条款记录在订单备注，CONFIRMED 备货中）+ CITES 2026CN/EC00042/HBB 双物种配额；华芝宝补 3 个 globalsales 联系人、2025 版 CITES 标记 EXPIRED。源文档 HZB/养殖基地信息入库2.docx（不入库），文末有待补充数据清单。
+
 **下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 剩余项 -1/-2/-3/-4 可穿插小步交付），建议顺序与要点：
 
 | 项 | 落点提示 |
