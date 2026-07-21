@@ -669,6 +669,8 @@ model Product {
   sourceLocale    String        @default("zh-CN")
   name            String
   description     String?
+  // 结构化营销/品质数据（营养成分、工艺特色、品鉴与搭配建议）；禁止写入任何供应商身份标识
+  attributes      Json?
   status          ProductStatus @default(DRAFT)
   publishedAt     DateTime?
   skus            ProductSku[]

@@ -112,7 +112,11 @@
     "species": "Espèce",
     "grade": "Grade",
     "addToCart": "Ajouter au panier",
-    "qty": "Qté"
+    "qty": "Qté",
+    "productFeatures": "Caractéristiques et procédé",
+    "nutritionFacts": "Valeurs nutritionnelles (pour 100 g / kg)",
+    "tastingNotes": "Notes de dégustation",
+    "pairingSuggestions": "Suggestions de dégustation"
   },
   "auth": {
     "login": "Connexion",

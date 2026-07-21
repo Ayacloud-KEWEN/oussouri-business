@@ -74,6 +74,8 @@ pnpm --filter @oussouri/web build
 
 **2026-07-20 增补**：第二家真实供应商**黑龙江拓派生物科技**经 `scripts/seed-tuopai-supplier.ts`（幂等，数据自包含，无需外部文件）导入：supplier-c@demo.oussouri（SP-000104，5 个养殖基地/3 联系人/2 产品 €310/€325）+ 进行中订单（合同 TP-FR-202601，52KG €16,735，30% 定金真实条款记录在订单备注，CONFIRMED 备货中）+ CITES 2026CN/EC00042/HBB 双物种配额；华芝宝补 3 个 globalsales 联系人、2025 版 CITES 标记 EXPIRED。源文档 HZB/养殖基地信息入库2.docx（不入库），文末有待补充数据清单。
 
+**2026-07-21 增补**：第三家真实供应商**湖南良美东江湖食品**经 `scripts/seed-liangmei-supplier.ts` 导入：supplier-d@demo.oussouri（SP-000110，东江湖基地/2 产品 €285/尊享级 9 年）+ 待付款订单（合同 LMDJH/SAS2026/07，10KG €2,850，CITES 待发货前办理故资质档案为 PENDING）。同批**新增 `Product.attributes` JSON 字段**（迁移 `20260721075400_product_attributes`）承载结构化品质数据——8 条工艺特色 + 20 项营养成分（谱尼报告 B1DA30066B1F1077960）+ 品鉴/搭配建议，产品详情页已做成专业展示区（三语文案齐）。**身份防火墙**：品牌名「普梵希/PUVENCHY」与精确厂址只入 `riskNotes`/加密列，公开 API 实测无泄漏。
+
 **下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 剩余项 -1/-2/-3/-4 可穿插小步交付），建议顺序与要点：
 
 | 项 | 落点提示 |

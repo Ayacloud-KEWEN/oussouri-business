@@ -16,6 +16,8 @@ export interface CreateProductInput {
   originCountry: string;
   name: string;
   description?: string;
+  /** 结构化品质数据（营养/工艺/品鉴/搭配）；供应商身份标识（品牌名、厂址、企业名）禁止写入 */
+  attributes?: Record<string, unknown>;
   sourceLocale?: string;
 }
 
@@ -162,6 +164,9 @@ export class CatalogService {
       code: product.publicCode,
       image: product.media[0] ? `/api/v1/files/${product.media[0].fileKey}` : null,
       name: translated?.get("name") ?? product.name,
+      description: translated?.get("description") ?? product.description,
+      // 结构化品质数据（营养/工艺/品鉴）：内容侧已保证不含供应商身份标识
+      attributes: product.attributes,
       category: product.categoryCode,
       species: product.speciesCode,
       grade: product.gradeCode,
@@ -197,6 +202,7 @@ export class CatalogService {
           originCountry: input.originCountry.toUpperCase(),
           name: input.name,
           description: input.description,
+          attributes: (input.attributes ?? undefined) as Prisma.InputJsonValue | undefined,
           sourceLocale: input.sourceLocale ?? "zh-CN",
           createdBy: user.sub,
         },

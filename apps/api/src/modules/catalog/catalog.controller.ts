@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { Type } from "class-transformer";
 import {
-  ArrayNotEmpty, IsArray, IsIn, IsISO31661Alpha2, IsNumber, IsOptional, IsPositive, IsString,
+  ArrayNotEmpty, IsArray, IsIn, IsISO31661Alpha2, IsNumber, IsObject, IsOptional, IsPositive, IsString,
   MaxLength, Min, ValidateNested,
 } from "class-validator";
 import { CatalogService } from "./catalog.service";
@@ -18,6 +18,7 @@ class CreateProductDto {
   @IsISO31661Alpha2() originCountry!: string;
   @IsString() @MaxLength(200) name!: string;
   @IsOptional() @IsString() @MaxLength(5000) description?: string;
+  @IsOptional() @IsObject() attributes?: Record<string, unknown>;
   @IsOptional() @IsIn(["zh-CN", "en", "fr"]) sourceLocale?: string;
 }
 

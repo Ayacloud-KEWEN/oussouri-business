@@ -112,7 +112,11 @@
     "species": "品种",
     "grade": "等级",
     "addToCart": "加入购物车",
-    "qty": "数量"
+    "qty": "数量",
+    "productFeatures": "产品特色与工艺",
+    "nutritionFacts": "营养成分（每 100g / 每 kg）",
+    "tastingNotes": "品鉴笔记",
+    "pairingSuggestions": "搭配建议"
   },
   "auth": {
     "login": "登录",

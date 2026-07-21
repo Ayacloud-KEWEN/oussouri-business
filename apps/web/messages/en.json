@@ -112,7 +112,11 @@
     "species": "Species",
     "grade": "Grade",
     "addToCart": "Add to cart",
-    "qty": "Qty"
+    "qty": "Qty",
+    "productFeatures": "Product features & process",
+    "nutritionFacts": "Nutrition facts (per 100g / per kg)",
+    "tastingNotes": "Tasting notes",
+    "pairingSuggestions": "Serving suggestions"
   },
   "auth": {
     "login": "Log in",
