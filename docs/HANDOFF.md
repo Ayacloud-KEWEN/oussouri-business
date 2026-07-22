@@ -7,7 +7,11 @@
 
 ## 1. 一句话现状
 
-**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：P1 交易闭环 + P2 全部五批（撮合/居间代下单/RFQ/履约/脱敏发单/溯源/外呼）+ 演示批次（GDPR/实时行情/产品图片/省份图/一键演示数据）已完成，**已部署在用户 OVH VPS（CloudPanel）供人工测试与投资人演示**。**R2 全部完成**（账号安全批：忘记/修改密码 + httpOnly cookie 会话 + TOTP 2FA；实时与搜索批：WS 通知推送 + 全文搜索；翻译管道：DeepSeek 机翻→人工复核；后台与风控批：可见性策略拦截器 + 主体名录 + 佣金配置/风控看板/审计检索）。**HZB 真实案例已入库**（本地 + VPS），**R1.5-5 外贸学院 / R1.5-6 首页数据真实化已交付**。下一步 R1（真实收款）+ R1.5 剩余项（分期付款/框架合同/CITES 多物种行/样品单）。
+**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：**P1 交易闭环 + P2 五批 + R2 全量 + R1 主体 + R1.5 全部 + R1.6 全部**已交付，部署在用户 OVH VPS（CloudPanel）。
+
+**能力现状**：注册审核 → 上架/溯源/库存 → 下单（直采/RFQ/居间代下单/样品单/框架合同挂靠）→ **分期付款进托管** → 接单备货 → 单证齐备度守卫 → 发货（**尾款未清拦截**）→ 双边报关 → 冷链温度 → 签收 → **争议裁决**或放款分账。三语（中/英/法）+ 身份防火墙 + 审计全覆盖。**三家真实供应商与两笔真实交易已入库**。
+
+**唯一阻断上线的事**：Stripe / SMTP / S3 三组真实密钥未配（代码已就绪并按占位符自动降级，见 §5）。
 
 ## 2. 必读文档（按此顺序）
 
@@ -37,7 +41,7 @@ pnpm --filter @oussouri/web dev   # Web :3000
 
 ```powershell
 pnpm --filter @oussouri/api typecheck ; pnpm --filter @oussouri/web typecheck
-pnpm --filter @oussouri/api test          # 32 单测
+pnpm --filter @oussouri/api test          # 36 单测
 # 起 API 后按改动范围重跑冒烟（apps/api/scripts/）：
 # smoke.ts(29) smoke-p2.ts(13) smoke-fulfillment.ts(17) smoke-p2x.ts(17)
 pnpm --filter @oussouri/web build
@@ -48,74 +52,38 @@ pnpm --filter @oussouri/web build
 
 ## 5. 下一步
 
-**R2 已交付（2026-07-11，本地已提交）**：
-- 忘记/修改密码（PasswordResetToken 一次性令牌 + MailPort 日志适配器，SMTP 等 R1-4）
-- httpOnly cookie 会话（`oussouri_at`/`oussouri_rt`；Guard 兼容 Bearer 头，冒烟脚本不受影响；前端 401 自动刷新一次）
-- 内部角色 TOTP 2FA（零依赖 RFC 6238 实现 `iam/totp.ts`，登录挑战 5 分钟票据；绑定需首码验证；/account 页管理）
-- WS 实时通知（`notification.gateway.ts` 挂 upgrade 事件于 `/v1/ws`，cookie 或 ?token= 鉴权；header 铃铛红点三语）
-- 产品搜索（`/products?q=`：tsvector + trigram + 中文逐词 ILIKE；EmbeddingPort 已留 OpenAI 兼容适配器，配 `EMBEDDING_API_*` 即启 pgvector 语义，DeepSeek 无 embedding API）
+### 5.1 立即可做的唯一阻断项：真实密钥联调（R1-8）
 
-**R2 批次 3+4 已交付（2026-07-12）**：
-- AI 翻译管道：`modules/i18n/`（LlmPort：DeepSeek 适配器，占位 key 自动降级 Fake；ProductPublished 触发机翻草稿，出站先过 PiiFilter；`/admin/translations` 复核；公开目录 `?locale=` 只露 REVIEWED 译文）
-- 可见性策略拦截器：`kernel/visibility/`（表驱动 DENY/MASK，@VisibilityResource 标注启用，60s 缓存；`/admin/visibility-policies` SUPER_ADMIN CRUD）；JwtAuthGuard 公共路由也尽力解析身份
-- 管理后台补齐：主体名录（全部供采+分页）｜佣金规则 `/admin/commission-rules`（ADMIN/FINANCE；下单按 priority 匹配、无规则回退 8%）｜PII 拦截看板 `/admin/risk/blocks`｜审计检索 `/admin/audit`（SUPER_ADMIN）
-- 注意：本地 `next build` 前必须停 dev server（.next 互写会坏，OneDrive 加剧）
+三组密钥填进 VPS `.env.production` 后重启即自动切换（未配时按假适配器/本地磁盘正常运行，不影响演示）：
 
-**2026-07-15 批次已交付**：
-- **HZB 真实案例入库**：50KG 真实交易（合同 HZBZLH20251008 → 订单 ORD-20260715-00112，COMPLETED）经 `scripts/seed-hzb-case.ts` 幂等导入本地与 VPS；原件 PDF 归档 `uploads/case-docs/HZB/`（HZB/ 目录已 gitignore，含银行信息勿入库）
-- **外贸教学文档** docs/caviar-trade-tutorial.md（十步实操 + 平台双侧操作指引，R1.5-5 待上站）
-- 修复：目录批发价对 cookie 会话失效（改用 `@CurrentUser()` 判定 + SSR 转发 cookie）；导航按角色路由（RFQ 大厅/首页 CTA）；原产地模块增强（湖南东江湖/云南 + 三语产区介绍 + line-clamp 排版）；首页新增「产业与市场洞察」版块
-- **复盘产出 R1.5 批次**（development-guide §9）：分期付款/框架合同/CITES 多物种行/样品单/知识中心/首页数据真实化
+| 服务 | 变量 | 配好后的变化 |
+|---|---|---|
+| Stripe | `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` / `STRIPE_WEBHOOK_SECRET` | 模拟支付 → 真实 Elements 卡收银台；Connect 打款到供应商账户 |
+| SMTP | `SMTP_HOST/PORT/USER/PASS/FROM`（或 `SMTP_URL`） | 日志 → 真发信（域名侧另需 SPF/DKIM/DMARC） |
+| OVH S3 | `S3_ENDPOINT/REGION/BUCKET_PRIVATE/ACCESS_KEY/SECRET_KEY` | 本地磁盘 → 对象存储 |
 
-**2026-07-16 批次已交付（R1.5-5 / R1.5-6）**：
-- **外贸学院**：`/help/academy` 三语学院页（react-markdown + remark-gfm，元素级站点配色映射）；文章内容维护在 `apps/web/content/academy.ts`（追加 ARTICLES 数组即新增文章）；帮助页有入口卡片
-- **首页数据真实化**：平台数据带接 `/market/stats`，达阈值（供应商/买家≥50、SKU≥100、成交≥300、国家≥5，见 page.tsx `STATS_LIVE_THRESHOLD`）自动切实时并亮「实时」徽标，否则演示值+「示例数据」；产业洞察经 `GET/PUT /market/portal-config`（ConfigEntry portal/industry-insights，ADMIN 写 + 审计）覆盖，管理后台底部「门户洞察配置」JSON 编辑卡片，浅合并（title/supply/demand/footnote 顶层整体替换），null 恢复默认
-- 注意：web 新增依赖 react-markdown/remark-gfm；`.next` 目录被 dev/build 互写弄脏时（EINVAL readlink）删掉 `.next` 重新 build 即可
+### 5.2 其余未做项（按优先级，详见 development-guide §9「未完成功能总览」）
 
-**2026-07-20 增补**：第二家真实供应商**黑龙江拓派生物科技**经 `scripts/seed-tuopai-supplier.ts`（幂等，数据自包含，无需外部文件）导入：supplier-c@demo.oussouri（SP-000104，5 个养殖基地/3 联系人/2 产品 €310/€325）+ 进行中订单（合同 TP-FR-202601，52KG €16,735，30% 定金真实条款记录在订单备注，CONFIRMED 备货中）+ CITES 2026CN/EC00042/HBB 双物种配额；华芝宝补 3 个 globalsales 联系人、2025 版 CITES 标记 EXPIRED。源文档 HZB/养殖基地信息入库2.docx（不入库），文末有待补充数据清单。
+- **B 合规运营**：R1-5 证书到期扫描 cron（仿 `matchmaking.service` 的 @Cron；`CitesPermit` 现已有 `daysToExpiry`，库中有现成的过期证与 PENDING 证可验证）｜R1-7 GDPR 数据导出/删除工作流｜R1.6-3 脱敏副本**像素级 PDF 打码**（当前仅元数据标记）
+- **D P3 大功能**（表结构多已备、零实现）：拍卖｜期货预售｜市场情报引擎｜AI Copilot（RAG/pgvector）｜经营分析看板｜撮合模型化
+- **E 工程债**：Playwright E2E｜恢复 CI｜并发预留测试｜账本借贷平衡不变量测试｜镜像瘦身｜Redis 限流｜覆盖率门禁
 
-**2026-07-21 增补**：第三家真实供应商**湖南良美东江湖食品**经 `scripts/seed-liangmei-supplier.ts` 导入：supplier-d@demo.oussouri（SP-000110，东江湖基地/2 产品 €285/尊享级 9 年）+ 待付款订单（合同 LMDJH/SAS2026/07，10KG €2,850，CITES 待发货前办理故资质档案为 PENDING）。同批**新增 `Product.attributes` JSON 字段**（迁移 `20260721075400_product_attributes`）承载结构化品质数据——8 条工艺特色 + 20 项营养成分（谱尼报告 B1DA30066B1F1077960）+ 品鉴/搭配建议，产品详情页已做成专业展示区（三语文案齐）。**身份防火墙**：品牌名「普梵希/PUVENCHY」与精确厂址只入 `riskNotes`/加密列，公开 API 实测无泄漏。
+### 5.3 交付批次速查（技术要点，接手前扫一眼）
 
-**2026-07-21 增补（R1.5-7 / R1.5-8）**：
-- **产品品质数据**：`Product.attributes` JSON + 产品详情页展示区（工艺特色/营养成分表/品鉴/搭配），详见上条良美案例
-- **上手引导**（用户反馈"不知道怎么用"）：`components/getting-started.tsx` 按账号真实数据判定进度，买家 5 步 / 供应商 6 步，当前步高亮并给直达链接，全完成自动折叠；帮助页加「我想…」场景导航 + 12 条术语速查 + 6 条实用 FAQ。文案在 `messages/*.json` 的 `guide` 段与 `help` 段（三语），改措辞不必动代码
-- ~~⚠️ 已知欠账：订单详情页不存在~~ 已于 2026-07-21 补齐（见下）
-
-**2026-07-21 大批次（R1.6-1 / R1-3 / R1-1 / R1-2 / R1.6-2 一并交付）**：
-1. **订单详情页** `/[locale]/orders/[code]`：`GET /orders/:code` 聚合（明细/付款/报关/单证/审计时间线，对手方仅平台代码、佣金对买家隐藏）+ shipment 接口补航段时刻与温度明细；页面含托管面板、单证齐备度、冷链 SVG 曲线（阴影为 -2~0℃ 合规带）
-2. **StoragePort**（`modules/files/storage.port.ts`）：本地磁盘 / S3 兼容双适配器，**手写 SigV4 无 SDK**；工厂在密钥缺失或为 `xxx` 占位时回退本地；兼容 `S3_BUCKET` 与 `.env` 里的 `S3_BUCKET_PRIVATE`
-3. **单证原件私有通道** `POST/GET /documents/:id/file`：逐次鉴权 + 上传下载均审计；**买家取不到原件**（走脱敏副本），订单 payload 只给 `hasFile` 布尔不给对象键
-4. **Stripe 收银台与 Connect**：`stripe-checkout.tsx` 有真实 key 走 Elements、无 key 回退模拟支付并明示演示模式；Connect 建号/入驻链接/状态回写；**真实网关下供应商未入驻会拦截放款**（此前会打到 `acct_fake_supplier`）
-5. **供应商自助档案**：联系人/资质/CITES 配额自助增删（`/party/contacts`、`/party/certificates` 全 CRUD），自助登记证书状态为 PENDING 待核验；产品 `attributes` 可 PATCH
-> 待你提供密钥后才能端到端联调的两项：Stripe（`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`/`STRIPE_WEBHOOK_SECRET`）与 OVH S3（`S3_*`）。未配时系统按假适配器/本地磁盘正常运行。
-
-**下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 剩余项 -1/-2/-3/-4 可穿插小步交付），建议顺序与要点：
-
-| 项 | 落点提示 |
+| 批次 | 关键落点 |
 |---|---|
-| R1-1 Stripe Elements 收银台 | 后端 checkout 已返回 clientSecret；前端买家支付改为 Stripe Elements 卡组件；webhook 已有签名验证（RestStripeAdapter）；假适配器逻辑保留供开发 |
-| R1-2 Connect 入驻 | `StripeAccount` 表已建；加 onboarding link 生成 + 状态回写；`SettlementService.releaseEscrow` 的 destination 目前是占位 `acct_fake_supplier` |
-| R1-3 S3 文件上传 | `files.controller` 换 StoragePort（本地/S3 双适配器，与 Stripe/Telephony 同模式）；密钥在 .env S3_* |
-| R1-4 SMTP 邮件 | 通知消费者在 `communication.service`（OnEvent）；加 MailPort + 模板三语渲染（EntityTranslation） |
-| R1-5 证书到期扫描 | 仿 `matchmaking.service` 的 @Cron；表索引已备（PartyCertificate.expiryDate / CitesPermit） |
-| R1-6 争议 UI | 后端 Dispute 模型 + 资金冻结逻辑已在；缺买家发起与管理员裁决页面 |
-| R1-7 GDPR 补齐 | 隐私页/Cookie 横幅已上线；剩数据导出/删除请求工作流 |
+| R2（07-11/12） | 忘记密码 + httpOnly cookie 会话 + TOTP 2FA｜WS 通知｜全文搜索｜DeepSeek 机翻管道｜可见性策略拦截器｜后台补齐 |
+| 真实数据（07-15/20/21） | 三家真实供应商 seed（`seed-hzb-case` / `seed-tuopai-supplier` / `seed-liangmei-supplier`，均幂等）｜`Product.attributes` 承载营养/工艺/品鉴｜外贸学院 `/help/academy`（内容在 `content/academy.ts`）｜首页数据达阈值切实时（`STATS_LIVE_THRESHOLD`）+ 洞察后台可配 |
+| 上手引导（07-21） | `components/getting-started.tsx` 按真实数据判进度；文案在 `messages/*.json` 的 `guide`/`help` 段，改措辞不必动代码 |
+| 履约可视化（07-21） | `GET /orders/:code` 聚合 + `/[locale]/orders/[code]` 页（单证齐备度/双边报关/航段/冷链 SVG/时间线）｜`StoragePort`（本地+S3 手写 SigV4）｜单证原件私有通道（买家取不到原件，payload 只给 `hasFile`）｜Stripe Elements + Connect |
+| R1.5 真实贸易（07-22） | `PaymentMilestone` 分期（checkout 每次只收最早未付一期，`PAYABLE_STATES` 控制可付状态）｜`TradeContract` 框架合同（总量上限含 ±tolerance，条款模板下发）｜`CitesPermitLine` 一证多物种（扣减须带 `speciesCode`）｜`OrderType.SAMPLE`（免 MOQ，≤5kg） |
+| A 组（07-22） | `dispute.service.ts` 争议全流程（三种裁决的资金分配见代码注释）｜`smtp.adapter.ts` 零依赖手写 SMTP |
 
-**2026-07-22 批次（R1.5 全部完成）**：
-- **分期付款**：`PaymentMilestone` + `trading/milestone.service.ts`。下单可传 `milestones` 或继承合同 `paymentTerms`；`POST /payments/checkout` 每次只收最早未付一期（返回 `amount` 与 `milestone`）；首期到账即 PAID_ESCROW，尾款未清时发货报 `MILESTONE_UNPAID`；`POST /milestones/:id/mark-paid` 供线下电汇登记。**注意**：checkout 的可付状态由 `PAYABLE_STATES` 控制（分期订单发货前各状态均可付，一次性订单仍限 PLACED）
-- **框架合同**：`TradeContract` + `trading/contract.service.ts`，`POST/GET /contracts`；下单传 `contractCode` 即校验总量上限（含 ±tolerance）并继承付款条款；合同列表含分批履历与剩余量。新增 codeRule `CONTRACT`（CTR-YYYYMMDD-nnnn），**新库需重跑 `prisma/seed`**
-- **CITES 多物种**：`CitesPermitLine`；建证支持 `lines[]`，扣减需带 `speciesCode`（多物种证不指定会报错）；供应商档案页有用量条与临期提醒。历史数据已用 `scripts/migrate-cites-lines.ts` 合并（幂等，VPS 需跑一次）
-- **样品单**：下单传 `sample: true` → `OrderType.SAMPLE`，免 MOQ 但总量 ≤5kg
+> **新库/新环境必做**：`npx tsx prisma/seed/index.ts`（含新增的 `CONTRACT` 编号规则与 `RESOLVED→COMPLETED` 状态转换）+ `npx tsx scripts/migrate-cites-lines.ts`（CITES 历史数据合并，幂等）。
 
-**2026-07-22 增补（A 组：R1-6 争议 / R1-4 SMTP）**：
-- **争议处理**（清掉文案欠账）：`trading/dispute.service.ts` + `POST /disputes`（签收后争议期内，订单转 DISPUTED 冻结托管）、`/disputes/:id/evidence`、`/disputes/:id/resolve`（ADMIN）。三种裁决的资金：驳回=按原佣金分账放款并自动 COMPLETED；全额退款=建 Refund + payment 转 REFUNDED；部分退款=退款额退买家、余额按原佣金比例分账。前端：订单页 `dispute-panel.tsx`、后台 `admin-disputes.tsx`。状态机新增 `RESOLVED→COMPLETED`（**新库需重跑 prisma/seed**）
-- **SMTP**：`communication/smtp.adapter.ts` 零依赖手写（隐式 TLS 465 / STARTTLS 587、AUTH LOGIN、RFC2047 主题编码、行首点号转义、multipart）。工厂读 `SMTP_HOST/PORT/USER/PASS/FROM`，也兼容 `.env` 里的 `SMTP_URL`；占位值回退 LogMailAdapter 并在 production 打警告。**待配真实凭据发信验证**
+## 5.5 文档可信度提示
 
-## 5.5 已知缺口（2026-07-21 代码级核实，勿轻信旧文档表述）
-
-~~两处「文案已承诺、功能不存在」~~ **已于 2026-07-22 全部清理**（争议功能与 SMTP 见下方批次说明）。
-
-其余未做项见 development-guide §9「未完成功能总览」（A 上线阻断 / B 合规运营 / C 真实贸易能力 / D P3 大功能 / E 工程债）。另注意：全项目只有 `matchmaking.service` 一个 `@Cron`，证书到期扫描尚未编写。
+本文与 development-guide §9 的完成状态均经**代码级核实**（grep 控制器/@Cron，而非沿用旧表述）。历史上出现过两次"文档说已就绪、实际是空壳"（争议功能、订单详情页），故接手后若发现描述与代码不符，**以代码为准并回头修文档**。
 
 ## 6. 高频陷阱（新会话最容易踩的）
 
@@ -128,6 +96,8 @@ pnpm --filter @oussouri/web build
 7. 用户的沟通语言是中文；对用户的 VPS 操作给完整可粘贴命令并预告耗时（构建被 Ctrl+C 打断过一次）。
 8. **VPS 环境与仓库有本地差异**：`.env.production` 里 `API_PORT=3100`（容器内 API 监听 3100 而非 3001，宿主映射 127.0.0.1:3101→3100）；容器内跑脚本用 `-e DEMO_API_BASE=http://127.0.0.1:3100/v1`。
 9. 公共接口做登录差异化视图（如批发价）一律用 Guard 解析的 `@CurrentUser()` 判定，兼容 Bearer 与 httpOnly cookie；`launch.json` 的 api 配置跑 `node dist/main.js`，改 API 源码后须 `pnpm --filter @oussouri/api build` 再重启预览。
+10. **改资金流必须端到端验证**：分期付款曾因 checkout 只允许 `PLACED` 状态而导致尾款永远付不了 —— 单测与类型检查都发现不了，只有跑完整"下单→首期→发货拦截→尾款→放行"才暴露。
+11. **本地跑验证脚本前先确认库存**：demo SKU 的库存会被反复测试耗尽，报 `INVENTORY_INSUFFICIENT` 多半是这个原因，补一批库存即可（记得用完清理测试数据）。
 
 ## 7. 未合并的已知琐碎项
 

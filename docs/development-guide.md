@@ -1,6 +1,6 @@
 # Oussouri Caviar HUB — 开发过程文档（Development Guide）
 
-> 更新：2026-07-09　适用版本：main @ P2 全量完成（已部署 CloudPanel 测试环境）
+> 更新：2026-07-22　适用版本：main @ P2 + R2 + R1 主体 + R1.5/R1.6 全量（已部署 CloudPanel）
 > 读者：加入项目的开发者 / 外包团队 / 未来的自己
 
 ---
@@ -93,7 +93,7 @@ pnpm --filter @oussouri/web dev       # Web :3000（/api/v1 代理到 API）
 ## 7. 测试与验证
 
 ```powershell
-pnpm --filter @oussouri/api test          # 单元 32 用例（crypto/PII/编码/阶梯价/状态机）
+pnpm --filter @oussouri/api test          # 单元 36 用例（crypto/PII/编码/阶梯价/状态机）
 # E2E 冒烟（先起 API）：
 npx tsx scripts/smoke.ts                  # P1 全闭环 29 项（注册→审核→上架→下单→支付→发货→签收→分账）
 npx tsx scripts/smoke-p2.ts               # P2 13 项（RFQ 闭环、撮合、居间代下单、价格底线）
@@ -120,7 +120,7 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 | UI 收尾 | 4e5a8f8/c5aa529 | 全站深蓝金主题统一、页头防换行、三语使用指南页 `/help` |
 | 已修缺陷 | — | scrypt maxmem；阶梯价 50kg 边界；PHONE 正则误拦订单号；health 401；.env 打入镜像；本机端口冲突改 5437/6381；VPS runc cgroup 残留（down→up 或重启 docker） |
 
-**测试基线**：单测 32 + E2E 冒烟 76 项（29/13/17/17），提交前全绿为硬性要求。
+**测试基线**：单测 36 + E2E 冒烟 76 项（29/13/17/17），提交前全绿为硬性要求。资金流/状态机相关改动另需手写端到端验证脚本（分期付款、争议裁决即如此发现缺陷）。
 **当前部署**：OVH VPS + CloudPanel，`/home/oussouri/htdocs/www.oussouri.com`，见 [deployment-cloudpanel.md](deployment-cloudpanel.md)。
 
 ## 9. 开发路标（Roadmap，2026-07-09 确认；2026-07-15 复盘更新）

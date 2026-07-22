@@ -69,7 +69,7 @@ docker push ghcr.io/ayacloud-kewen/oussouri-web:latest
 
 建议每次发布同时打日期 tag（如 `:2026-07-05`）便于回滚：`docker tag ... && docker push ...`。
 
-**发布前本机检查单**：`pnpm --filter @oussouri/api test`（32 单测）→ 起 API 跑三个冒烟（`smoke.ts` 29 项 / `smoke-p2.ts` 13 项 / `smoke-fulfillment.ts` 17 项）→ 双端 `pnpm build` 通过。
+**发布前本机检查单**：`pnpm --filter @oussouri/api test`（36 单测）→ 起 API 跑三个冒烟（`smoke.ts` 29 项 / `smoke-p2.ts` 13 项 / `smoke-fulfillment.ts` 17 项）→ 双端 `pnpm build` 通过。
 
 ## 4. 首次上线流程
 
