@@ -688,6 +688,8 @@
     "coldChain": "冷链温度记录（阴影区为 -2℃~0℃ 合规区间）",
     "tempUnit": "℃",
     "timeline": "状态时间线",
-    "viewDetail": "查看详情"
+    "viewDetail": "查看详情",
+    "viewFile": "查看原件",
+    "uploadFile": "上传原件"
   }
 }

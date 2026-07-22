@@ -9,7 +9,7 @@ import { TemperatureChart } from "@/components/temperature-chart";
 interface OrderItem { qty: string; unitPrice: string; lineTotal: string; snapshot: { productName?: string; skuCode?: string; packSpec?: string } }
 interface Payment { method: string; amount: string; currency: string; status: string; paidAt: string | null; createdAt: string }
 interface Declaration { direction: string; declarationNo: string | null; brokerName: string | null; status: string; declaredAt: string | null; clearedAt: string | null; inspectionResult: string | null }
-interface DocRow { docType: string; docNo: string | null; issuer: string | null; issueDate: string | null; expiryDate: string | null; status: string }
+interface DocRow { id: string; docType: string; docNo: string | null; issuer: string | null; issueDate: string | null; expiryDate: string | null; status: string; hasFile: boolean }
 interface TimelineRow { action: string; at: string; actorRole: string | null; to: string | null }
 interface OrderDetail {
   code: string; status: string; orderType: string; side: string;
@@ -50,6 +50,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -79,6 +80,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
       setMessage(dict.common.success);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : dict.common.error);
+    }
+  };
+
+  /** 单证原件上传（multipart，不经 api() 的 JSON 包装） */
+  const uploadDoc = async (documentId: string, file: File) => {
+    setUploadingId(documentId);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/v1/documents/${documentId}/file`, { method: "POST", credentials: "same-origin", body: form });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as { detail?: string } | null;
+        throw new Error(err?.detail ?? dict.common.error);
+      }
+      await refresh();
+      setMessage(dict.common.success);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : dict.common.error);
+    } finally {
+      setUploadingId(null);
     }
   };
 
@@ -191,11 +213,41 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
           ) : (
             <table className="w-full text-sm">
               <tbody>
-                {order.documents.map((doc, i) => (
-                  <tr key={i} className="border-t" style={{ borderColor: "var(--color-border)" }}>
+                {order.documents.map((doc) => (
+                  <tr key={doc.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
                     <td className="py-1.5 font-medium">{doc.docType}</td>
                     <td className="py-1.5 font-mono text-xs" style={{ color: "var(--color-muted)" }}>{doc.docNo ?? "—"}</td>
                     <td className="py-1.5 text-right text-xs" style={{ color: "var(--color-muted)" }}>{d10(doc.issueDate)}</td>
+                    {/* 原件仅供应商与内部角色可见可传（买家走脱敏副本） */}
+                    {!isBuyer && (
+                      <td className="py-1.5 pl-2 text-right">
+                        {doc.hasFile ? (
+                          <a
+                            className="text-xs"
+                            style={{ color: "var(--color-accent)" }}
+                            href={`/api/v1/documents/${doc.id}/file`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t.viewFile}
+                          </a>
+                        ) : (
+                          <label className="cursor-pointer text-xs" style={{ color: "var(--color-muted)" }}>
+                            {uploadingId === doc.id ? dict.common.loading : t.uploadFile}
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) void uploadDoc(doc.id, f);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

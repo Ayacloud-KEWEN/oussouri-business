@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { Type } from "class-transformer";
 import {
   ArrayNotEmpty, IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsPositive, IsString,
@@ -112,6 +114,29 @@ export class FulfillmentController {
   @Get("orders/:code/doc-checklist")
   checklist(@Param("code") code: string, @CurrentUser() user: JwtPayload) {
     return this.fulfillment.docChecklist(code, user);
+  }
+
+  // 单证原件上传/下载（R1-3）：私有通道，逐次鉴权 + 审计
+  @Roles("SUPPLIER", "CUSTOMS_OFFICER", "ADMIN")
+  @Post("documents/:id/file")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 25 * 1024 * 1024 } }))
+  uploadDocFile(
+    @Param("id") id: string,
+    @UploadedFile() file: { buffer: Buffer; mimetype: string; originalname: string } | undefined,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (!file) throw new BadRequestException({ code: "VALIDATION_FAILED", detail: "缺少文件（form 字段名 file）" });
+    return this.fulfillment.uploadDocumentFile(id, file, user);
+  }
+
+  @Roles("SUPPLIER", "CUSTOMS_OFFICER", "ADMIN")
+  @Get("documents/:id/file")
+  async downloadDocFile(@Param("id") id: string, @CurrentUser() user: JwtPayload, @Res() res: Response) {
+    const obj = await this.fulfillment.downloadDocumentFile(id, user);
+    res.setHeader("Content-Type", obj.contentType);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(obj.filename)}"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.end(obj.body);
   }
 
   // 单证脱敏发送（P2.3）

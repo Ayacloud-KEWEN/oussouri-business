@@ -304,7 +304,7 @@ export class TradingService {
       this.prisma.document.findMany({
         where: { refType: "ORDER", refId: order.id, deletedAt: null },
         orderBy: { createdAt: "asc" },
-        select: { docType: true, docNo: true, issuer: true, issueDate: true, expiryDate: true, status: true },
+        select: { id: true, docType: true, docNo: true, issuer: true, issueDate: true, expiryDate: true, status: true, fileKey: true },
       }),
       // 状态流转时间线（审计域）
       this.prisma.auditLog.findMany({
@@ -334,7 +334,11 @@ export class TradingService {
       items: order.items.map((i) => ({ qty: i.qty, unitPrice: i.unitPrice, lineTotal: i.lineTotal, snapshot: i.snapshot })),
       payments,
       declarations,
-      documents,
+      // 只暴露"是否已上传原件"，绝不外泄对象键（买家侧尤其重要）
+      documents: documents.map(({ fileKey, ...d }) => ({
+        ...d,
+        hasFile: Boolean(fileKey) && !fileKey!.startsWith("pending-upload/"),
+      })),
       timeline: transitions.map((t) => ({
         action: t.action,
         at: t.occurredAt,

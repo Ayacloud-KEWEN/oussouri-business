@@ -688,6 +688,8 @@
     "coldChain": "Cold-chain log (shaded band = compliant −2 °C to 0 °C)",
     "tempUnit": "°C",
     "timeline": "Status timeline",
-    "viewDetail": "View detail"
+    "viewDetail": "View detail",
+    "viewFile": "View file",
+    "uploadFile": "Upload"
   }
 }

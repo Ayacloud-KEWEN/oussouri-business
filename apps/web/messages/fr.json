@@ -688,6 +688,8 @@
     "coldChain": "Relevés de température (bande = plage conforme −2 °C à 0 °C)",
     "tempUnit": "°C",
     "timeline": "Chronologie des statuts",
-    "viewDetail": "Voir le détail"
+    "viewDetail": "Voir le détail",
+    "viewFile": "Voir le fichier",
+    "uploadFile": "Téléverser"
   }
 }

@@ -4,6 +4,7 @@ import { PrismaService } from "../../kernel/prisma/prisma.service";
 import { StateMachineService } from "../../kernel/state-machine/state-machine.service";
 import { AuditService } from "../../kernel/audit/audit.service";
 import { CommunicationService } from "../communication/communication.service";
+import { StoragePort } from "../files/storage.port";
 import type { JwtPayload } from "../iam/auth.types";
 
 export interface ShipmentLegInput {
@@ -25,6 +26,7 @@ export class FulfillmentService {
     private readonly stateMachine: StateMachineService,
     private readonly audit: AuditService,
     private readonly comm: CommunicationService,
+    private readonly storage: StoragePort,
   ) {}
 
   // ---------- 运单（M10） ----------
@@ -294,6 +296,55 @@ export class FulfillmentService {
       await this.comm.notifyUser(m.userId, "DOC_RECEIVED", { docType: doc.docType, trackingCode, docNo: doc.docNo });
     }
     return { trackingCode, copyId: copy.id, docType: doc.docType };
+  }
+
+  // ---------- 单证原件上传/下载（R1-3，私有通道） ----------
+
+  /** 上传原件：仅单证所属供应商与内部角色；对象键含订单与单证 id，避免枚举 */
+  async uploadDocumentFile(
+    documentId: string,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+    user: JwtPayload,
+  ) {
+    const doc = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
+    if (!doc) throw new NotFoundException({ code: "NOT_FOUND", detail: "单证不存在" });
+    if (doc.ownerOrgId !== user.orgId && !this.isStaff(user)) {
+      throw new ForbiddenException({ code: "PERM_SCOPE_VIOLATION", detail: "仅本组织单证" });
+    }
+    const ext = (file.originalname.split(".").pop() ?? "bin").toLowerCase();
+    if (!["pdf", "jpg", "jpeg", "png", "webp"].includes(ext)) {
+      throw new ConflictException({ code: "VALIDATION_FAILED", detail: "仅支持 PDF/JPG/PNG/WebP" });
+    }
+    const key = `documents/${doc.refId ?? "misc"}/${doc.id}.${ext}`;
+    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.prisma.document.update({ where: { id: doc.id }, data: { fileKey: key, updatedBy: user.sub, version: { increment: 1 } } });
+    await this.audit.log({
+      actorId: user.sub, actorRole: user.roles.join(","), action: "DOC_FILE_UPLOADED",
+      targetType: "Document", targetId: doc.id, diff: { key, bytes: file.buffer.length },
+    });
+    return { documentId: doc.id, key, bytes: file.buffer.length };
+  }
+
+  /**
+   * 下载原件：仅所属供应商与内部角色。
+   * 买家永远走脱敏副本通道（不在此开放），身份防火墙不因便利让步。
+   */
+  async downloadDocumentFile(documentId: string, user: JwtPayload) {
+    const doc = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
+    if (!doc) throw new NotFoundException({ code: "NOT_FOUND", detail: "单证不存在" });
+    if (doc.ownerOrgId !== user.orgId && !this.isStaff(user)) {
+      throw new ForbiddenException({ code: "PERM_SCOPE_VIOLATION", detail: "仅本组织单证" });
+    }
+    if (!doc.fileKey || doc.fileKey.startsWith("pending-upload/")) {
+      throw new NotFoundException({ code: "NOT_FOUND", detail: "原件尚未上传" });
+    }
+    const obj = await this.storage.get(doc.fileKey);
+    if (!obj) throw new NotFoundException({ code: "NOT_FOUND", detail: "原件不存在于存储" });
+    await this.audit.log({
+      actorId: user.sub, actorRole: user.roles.join(","), action: "DOC_FILE_DOWNLOADED",
+      targetType: "Document", targetId: doc.id,
+    });
+    return { ...obj, filename: `${doc.docType}-${doc.docNo ?? doc.id.slice(0, 8)}.${doc.fileKey.split(".").pop()}` };
   }
 
   /** 接收方档案：我组织收到的脱敏副本（永不含原件 fileKey） */
