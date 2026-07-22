@@ -619,7 +619,8 @@
     "loading": "Chargement…",
     "error": "Une erreur est survenue",
     "success": "Terminé",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "cancel": "Annuler"
   },
   "guide": {
     "title": "Prise en main · prochaine étape",
@@ -738,5 +739,36 @@
     "issueDate": "Date de délivrance",
     "expiredTag": "expiré",
     "expiringIn": "expire dans {days} jours"
+  },
+  "dispute": {
+    "title": "Litige",
+    "raise": "Ouvrir un litige",
+    "raisedBy": "Ouvert par",
+    "submit": "Soumettre le litige",
+    "descriptionPlaceholder": "Décrivez le problème en détail (10 caractères min.) : grain hors spécification, température à l'arrivée, manquant… et le règlement souhaité",
+    "freezeNote": "La soumission gèle les fonds sous séquestre pendant l'instruction",
+    "windowNote": "En cas de problème sur la marchandise, ouvrez un litige avant le :",
+    "verdict": "Décision de la plateforme",
+    "refund": "remboursement",
+    "adminTitle": "Arbitrage des litiges",
+    "adminHint": "La décision déplace les fonds immédiatement : rejet = paiement au fournisseur, remboursement = retour à l'acheteur",
+    "noPending": "Aucun litige en attente",
+    "refundAmount": "Montant du remboursement",
+    "verdictReason": "Motif de la décision (communiqué aux deux parties)",
+    "submitVerdict": "Rendre la décision",
+    "resolvedHistory": "Litiges clos",
+    "reasons": {
+      "QUALITY_DEFECT": "Défaut de qualité",
+      "QUANTITY_SHORT": "Quantité manquante",
+      "COLD_CHAIN_BREACH": "Rupture de chaîne du froid",
+      "DOCUMENT_MISSING": "Documents manquants",
+      "DELIVERY_DELAY": "Retard important",
+      "OTHER": "Autre"
+    },
+    "decisions": {
+      "REJECT": "Rejeter (payer le fournisseur)",
+      "REFUND_FULL": "Remboursement intégral",
+      "REFUND_PARTIAL": "Remboursement partiel"
+    }
   }
 }

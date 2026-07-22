@@ -619,7 +619,8 @@
     "loading": "Loading…",
     "error": "Something went wrong",
     "success": "Done",
-    "save": "Save"
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "guide": {
     "title": "Getting started · what to do next",
@@ -738,5 +739,36 @@
     "issueDate": "Issue date",
     "expiredTag": "expired",
     "expiringIn": "expires in {days} days"
+  },
+  "dispute": {
+    "title": "Dispute",
+    "raise": "Raise a dispute",
+    "raisedBy": "Raised by",
+    "submit": "Submit dispute",
+    "descriptionPlaceholder": "Describe the problem in detail (min. 10 characters): grain size below spec, temperature breach on arrival, short shipment… and what outcome you expect",
+    "freezeNote": "Submitting freezes the escrowed funds while the platform investigates",
+    "windowNote": "If something is wrong with the goods, raise a dispute before:",
+    "verdict": "Platform ruling",
+    "refund": "refund",
+    "adminTitle": "Dispute adjudication",
+    "adminHint": "A ruling moves money immediately: rejecting pays the supplier, refunding returns funds to the buyer",
+    "noPending": "No disputes awaiting a ruling",
+    "refundAmount": "Refund amount",
+    "verdictReason": "Reason for the ruling (shared with both sides)",
+    "submitVerdict": "Submit ruling",
+    "resolvedHistory": "Closed disputes",
+    "reasons": {
+      "QUALITY_DEFECT": "Quality defect",
+      "QUANTITY_SHORT": "Short shipment",
+      "COLD_CHAIN_BREACH": "Cold-chain breach",
+      "DOCUMENT_MISSING": "Missing documents",
+      "DELIVERY_DELAY": "Severe delay",
+      "OTHER": "Other"
+    },
+    "decisions": {
+      "REJECT": "Reject dispute (pay supplier)",
+      "REFUND_FULL": "Full refund to buyer",
+      "REFUND_PARTIAL": "Partial refund"
+    }
   }
 }

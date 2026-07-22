@@ -1,6 +1,6 @@
 # HANDOFF — 新会话接续开发指南
 
-> 更新：2026-07-21（每次大批次交付后更新本文件）
+> 更新：2026-07-22（每次大批次交付后更新本文件）
 > 用途：在新的 Claude 会话/新开发者接手时，读完本文即可继续开发，无需翻聊天记录。
 
 ---
@@ -107,11 +107,13 @@ pnpm --filter @oussouri/web build
 - **CITES 多物种**：`CitesPermitLine`；建证支持 `lines[]`，扣减需带 `speciesCode`（多物种证不指定会报错）；供应商档案页有用量条与临期提醒。历史数据已用 `scripts/migrate-cites-lines.ts` 合并（幂等，VPS 需跑一次）
 - **样品单**：下单传 `sample: true` → `OrderType.SAMPLE`，免 MOQ 但总量 ≤5kg
 
+**2026-07-22 增补（A 组：R1-6 争议 / R1-4 SMTP）**：
+- **争议处理**（清掉文案欠账）：`trading/dispute.service.ts` + `POST /disputes`（签收后争议期内，订单转 DISPUTED 冻结托管）、`/disputes/:id/evidence`、`/disputes/:id/resolve`（ADMIN）。三种裁决的资金：驳回=按原佣金分账放款并自动 COMPLETED；全额退款=建 Refund + payment 转 REFUNDED；部分退款=退款额退买家、余额按原佣金比例分账。前端：订单页 `dispute-panel.tsx`、后台 `admin-disputes.tsx`。状态机新增 `RESOLVED→COMPLETED`（**新库需重跑 prisma/seed**）
+- **SMTP**：`communication/smtp.adapter.ts` 零依赖手写（隐式 TLS 465 / STARTTLS 587、AUTH LOGIN、RFC2047 主题编码、行首点号转义、multipart）。工厂读 `SMTP_HOST/PORT/USER/PASS/FROM`，也兼容 `.env` 里的 `SMTP_URL`；占位值回退 LogMailAdapter 并在 production 打警告。**待配真实凭据发信验证**
+
 ## 5.5 已知缺口（2026-07-21 代码级核实，勿轻信旧文档表述）
 
-🚨 **两处「前端文案已承诺、后端功能不存在」**，接手后请优先清理：
-1. **争议功能是空壳**：`Dispute` 表 + `disputeUntil`（签收后 48h）+ 放款前未决争议检查都在，但**无创建/裁决接口、无 UI**，买家发起不了争议。而 `messages/*.json` 的 `guide.buyer.s5`、`help.faqExtra`、`orderDetail.escrowNote` 都写了"可在争议期内发起争议"。
-2. **邮件发不出去**：只有 `LogMailAdapter`（打日志），无 SMTP 适配器 → 忘记密码的重置链接只进服务器日志，用户收不到。
+~~两处「文案已承诺、功能不存在」~~ **已于 2026-07-22 全部清理**（争议功能与 SMTP 见下方批次说明）。
 
 其余未做项见 development-guide §9「未完成功能总览」（A 上线阻断 / B 合规运营 / C 真实贸易能力 / D P3 大功能 / E 工程债）。另注意：全项目只有 `matchmaking.service` 一个 `@Cron`，证书到期扫描尚未编写。
 

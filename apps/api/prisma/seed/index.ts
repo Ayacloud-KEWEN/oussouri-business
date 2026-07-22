@@ -67,6 +67,8 @@ async function seedOrderStateMachine(): Promise<void> {
     { from: "DELIVERED", to: "COMPLETED", roles: ["SYSTEM"], emits: "OrderCompleted" },
     { from: "DELIVERED", to: "DISPUTED", roles: ["BUYER", "SUPPLIER"], emits: "OrderDisputed" },
     { from: "DISPUTED", to: "RESOLVED", roles: ["ADMIN", "CUSTOMER_SERVICE"], emits: "DisputeResolved" },
+    // 争议驳回后订单可正常收口（R1-6）
+    { from: "RESOLVED", to: "COMPLETED", roles: ["SYSTEM", "ADMIN"], emits: "OrderCompleted" },
   ];
   for (const t of transitions) {
     await prisma.stateTransition.upsert({

@@ -132,9 +132,9 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 | R1-1 | **Stripe Elements 收银台** ✅ 2026-07-21 | `components/stripe-checkout.tsx`：有 `STRIPE_PUBLISHABLE_KEY` 走真实 Elements 卡支付，无则回退模拟支付并标注演示模式；`GET /payments/config` 供前端判定 | 已交付，**待配真实密钥端到端联调** |
 | R1-2 | **供应商 Stripe Connect 入驻** ✅ 2026-07-21 | StripePort 加 Connect 三方法（建号/入驻链接/状态）；`POST /settlement/connect/onboarding`、`GET /settlement/connect/status`；供应商工作台入驻卡片；**未入驻时真实网关下放款被拦截**（不再打占位账户） | 已交付，**待配真实密钥端到端联调** |
 | R1-3 | **S3 文件真实上传** ✅ 2026-07-21 | `StoragePort` + 本地磁盘/S3 双适配器（手写 SigV4 零 SDK）；单证原件私有通道 `POST/GET /documents/:id/file`（逐次鉴权+审计，买家不可取原件）；产品图改走 Port | 已交付，**待配 S3 密钥切换后端** |
-| R1-4 | **邮件通道（SMTP）** 🚨 上线阻断 | 审核/支付链接/告警邮件；SPF/DKIM/DMARC | **仅 `LogMailAdapter`（打日志不外发）→ 用户点「忘记密码」永远收不到邮件，重置链接只在服务器日志** |
+| R1-4 | **邮件通道（SMTP）** ✅ 2026-07-22 | `communication/smtp.adapter.ts`：零依赖手写 SMTP 客户端（隐式 TLS 465 / STARTTLS 587、AUTH LOGIN、RFC2047 主题编码、行首点号转义、multipart）；工厂支持 `SMTP_HOST/USER/PASS` 或 `.env` 的 `SMTP_URL`，占位值回退日志适配器并在生产环境告警 | 已交付，**待配真实 SMTP 凭据发信验证**（SPF/DKIM/DMARC 需域名侧配置） |
 | R1-5 | 证书到期扫描任务 | CITES/SC 临期提醒 + 过期自动下架 | 表/索引就绪，**全项目仅 matchmaking 一个 @Cron**，此任务未写。库中已有过期证（华芝宝 2025 CITES）与待办证（良美 PENDING）可作验证素材 |
-| R1-6 | **争议处理** 🚨 上线阻断 | 买家发起 + 管理员裁决 | **实为空壳**：`Dispute` 表、`disputeUntil`（签收后 48h）、放款前的未决争议检查都在，但**没有任何创建/裁决接口，更无 UI —— 买家点不了「发起争议」**。而引导文案、帮助 FAQ、订单页托管说明均已向用户承诺此能力（第二笔文案欠账，同 R1.6-1 性质） |
+| R1-6 | **争议处理** ✅ 2026-07-22 | `trading/dispute.service.ts`：签收后争议期内发起（订单转 DISPUTED、托管冻结）、补充证据、平台三种裁决（驳回放款 / 全额退款 / 部分退款按原佣金比例分账）；订单页争议区 + 管理后台裁决面板；状态机补 `RESOLVED→COMPLETED` | 已交付（文案欠账已清） |
 | R1-7 | GDPR 补齐 | 数据导出/删除请求工作流 | 隐私页与 Cookie 横幅已上线，用户行权流程未做 |
 | R1-8 | **真实密钥联调** | Stripe（`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`/`STRIPE_WEBHOOK_SECRET`）与 OVH S3（`S3_*`） | 代码已就绪并按占位符自动降级；**等用户提供密钥后端到端验证** |
 
@@ -178,7 +178,7 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 
 > 核实方式：grep 控制器与 @Cron，而非依赖旧文档表述。以下为**实际不存在**的能力。
 
-**A. 上线阻断（真实用户会卡死）**：R1-4 SMTP ｜ R1-6 争议发起与裁决 ｜ R1-8 Stripe/S3 真实密钥联调
+**A. 上线阻断**：✅ R1-4 SMTP 与 R1-6 争议已交付（2026-07-22）；**仅剩 R1-8 真实密钥联调**（Stripe / S3 / SMTP 凭据由用户提供后验证）
 
 **B. 合规与运营**：R1-5 证书到期扫描 cron ｜ R1-7 GDPR 行权工作流 ｜ R1.6-3 脱敏副本**像素级遮盖**（当前发出的 PDF 并未真正打码，仅元数据标记）
 

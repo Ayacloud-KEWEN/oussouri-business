@@ -619,7 +619,8 @@
     "loading": "加载中…",
     "error": "操作失败",
     "success": "操作成功",
-    "save": "保存"
+    "save": "保存",
+    "cancel": "取消"
   },
   "guide": {
     "title": "新手引导 · 下一步做什么",
@@ -738,5 +739,36 @@
     "issueDate": "签发日期",
     "expiredTag": "已过期",
     "expiringIn": "{days} 天后到期"
+  },
+  "dispute": {
+    "title": "争议处理",
+    "raise": "发起争议",
+    "raisedBy": "发起方",
+    "submit": "提交争议",
+    "descriptionPlaceholder": "请详细描述问题（至少 10 字）：如粒径不达标、到货温度超标、数量短少等，并说明期望的处理方式",
+    "freezeNote": "提交后平台将冻结托管资金并介入调查",
+    "windowNote": "如对货物有异议，可在争议期内发起：",
+    "verdict": "平台裁决",
+    "refund": "退款",
+    "adminTitle": "争议裁决",
+    "adminHint": "裁决即触发资金处理：驳回则放款给供应商，退款则退回买家",
+    "noPending": "暂无待裁决争议",
+    "refundAmount": "退款金额",
+    "verdictReason": "裁决理由（将同时告知双方）",
+    "submitVerdict": "提交裁决",
+    "resolvedHistory": "已结案争议",
+    "reasons": {
+      "QUALITY_DEFECT": "品质不符",
+      "QUANTITY_SHORT": "数量短少",
+      "COLD_CHAIN_BREACH": "冷链断链",
+      "DOCUMENT_MISSING": "单证缺失",
+      "DELIVERY_DELAY": "严重延迟",
+      "OTHER": "其他"
+    },
+    "decisions": {
+      "REJECT": "驳回争议（放款给供应商）",
+      "REFUND_FULL": "全额退款给买家",
+      "REFUND_PARTIAL": "部分退款"
+    }
   }
 }

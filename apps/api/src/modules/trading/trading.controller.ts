@@ -1,12 +1,13 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { Type } from "class-transformer";
 import {
   ArrayNotEmpty, IsArray, IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsPositive, IsString,
-  MaxLength, ValidateNested,
+  MaxLength, MinLength, ValidateNested,
 } from "class-validator";
 import { TradingService } from "./trading.service";
 import { ContractService } from "./contract.service";
 import { MilestoneService } from "./milestone.service";
+import { DisputeService, DISPUTE_REASONS } from "./dispute.service";
 import { CurrentUser, Roles } from "../iam/roles.guard";
 import type { JwtPayload } from "../iam/auth.types";
 
@@ -58,6 +59,23 @@ class MarkPaidDto {
   @IsOptional() @IsString() @MaxLength(200) note?: string;
 }
 
+class OpenDisputeDto {
+  @IsString() orderCode!: string;
+  @IsIn(DISPUTE_REASONS as unknown as string[]) reasonCode!: string;
+  @IsString() @MinLength(10) @MaxLength(2000) description!: string;
+  @IsOptional() @IsArray() evidence?: unknown[];
+}
+
+class EvidenceDto {
+  @IsArray() @ArrayNotEmpty() evidence!: unknown[];
+}
+
+class ResolveDisputeDto {
+  @IsIn(["REJECT", "REFUND_FULL", "REFUND_PARTIAL"]) decision!: "REJECT" | "REFUND_FULL" | "REFUND_PARTIAL";
+  @IsOptional() @IsNumber() @IsPositive() refundAmount?: number;
+  @IsString() @MinLength(5) @MaxLength(1000) reason!: string;
+}
+
 class TransitionDto {
   @IsOptional() @IsString() @MaxLength(500) reason?: string;
 }
@@ -68,6 +86,7 @@ export class TradingController {
     private readonly trading: TradingService,
     private readonly contracts: ContractService,
     private readonly milestoneService: MilestoneService,
+    private readonly disputes: DisputeService,
   ) {}
 
   // 购物车
@@ -126,6 +145,29 @@ export class TradingController {
   @Post("milestones/:id/mark-paid")
   markMilestonePaid(@Param("id") id: string, @Body() dto: MarkPaidDto, @CurrentUser() user: JwtPayload) {
     return this.milestoneService.markPaid(id, user, dto.note);
+  }
+
+  // ---- 争议（R1-6）----
+  @Roles("BUYER", "SUPPLIER")
+  @Post("disputes")
+  openDispute(@Body() dto: OpenDisputeDto, @CurrentUser() user: JwtPayload) {
+    return this.disputes.open(dto, user);
+  }
+
+  @Get("disputes")
+  listDisputes(@Query("status") status: string | undefined, @CurrentUser() user: JwtPayload) {
+    return this.disputes.list(user, status);
+  }
+
+  @Post("disputes/:id/evidence")
+  addEvidence(@Param("id") id: string, @Body() dto: EvidenceDto, @CurrentUser() user: JwtPayload) {
+    return this.disputes.addEvidence(id, dto.evidence, user);
+  }
+
+  @Roles("ADMIN", "SUPER_ADMIN", "CUSTOMER_SERVICE")
+  @Post("disputes/:id/resolve")
+  resolveDispute(@Param("id") id: string, @Body() dto: ResolveDisputeDto, @CurrentUser() user: JwtPayload) {
+    return this.disputes.resolve(id, dto, user);
   }
 
   @Roles("BUYER") @Post("buyer/orders/:code/cancel")

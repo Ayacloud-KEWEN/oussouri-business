@@ -6,6 +6,7 @@ import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { TemperatureChart } from "@/components/temperature-chart";
 import { StripeCheckout } from "@/components/stripe-checkout";
+import { DisputePanel } from "@/components/dispute-panel";
 
 interface OrderItem { qty: string; unitPrice: string; lineTotal: string; snapshot: { productName?: string; skuCode?: string; packSpec?: string } }
 interface Payment { method: string; amount: string; currency: string; status: string; paidAt: string | null; createdAt: string }
@@ -360,6 +361,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
           </div>
         )}
       </Panel>
+
+      {/* 争议（R1-6）：签收后争议期内可发起，资金冻结待平台裁决 */}
+      <DisputePanel
+        orderCode={order.code}
+        orderStatus={order.status}
+        disputeUntil={order.disputeUntil}
+        dict={dict}
+        onChanged={() => void refresh()}
+      />
 
       {/* 状态时间线 */}
       {order.timeline.length > 0 && (
