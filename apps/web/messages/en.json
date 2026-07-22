@@ -727,6 +727,11 @@
     "permitNo": "Permit no.",
     "species": "Species code",
     "quotaKg": "Quota (kg)",
-    "remaining": "left"
+    "remaining": "left",
+    "labelRange": "Tin label range (optional)",
+    "addSpecies": "Add species line",
+    "issueDate": "Issue date",
+    "expiredTag": "expired",
+    "expiringIn": "expires in {days} days"
   }
 }

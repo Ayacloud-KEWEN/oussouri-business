@@ -438,55 +438,133 @@ export class FulfillmentService {
 
   // ---------- CITES 配额（M11 FR-11-03） ----------
 
+  /**
+   * 登记 CITES 许可证（R1.5-3）：支持一证多物种。
+   * lines 为空时按单物种证处理（兼容旧调用）。
+   */
   async createCitesPermit(
-    input: { supplierOrgCode: string; permitNo: string; speciesCode: string; quotaKg: number; issueDate: string; expiryDate: string },
+    input: {
+      supplierOrgCode: string; permitNo: string; issueDate: string; expiryDate: string;
+      speciesCode?: string; quotaKg?: number;
+      lines?: { speciesCode: string; quotaKg: number; labelRange?: string }[];
+    },
     user: JwtPayload,
   ) {
     const supplier = await this.prisma.organization.findFirst({ where: { publicCode: input.supplierOrgCode, deletedAt: null } });
     if (!supplier) throw new NotFoundException({ code: "NOT_FOUND", detail: "供应商不存在" });
+    const lines = input.lines?.length
+      ? input.lines
+      : input.speciesCode && input.quotaKg
+        ? [{ speciesCode: input.speciesCode, quotaKg: input.quotaKg }]
+        : [];
+    if (lines.length === 0) {
+      throw new ConflictException({ code: "VALIDATION_FAILED", detail: "至少需要一个物种行（lines 或 speciesCode+quotaKg）" });
+    }
+    const totalQuota = lines.reduce((s, l) => s + l.quotaKg, 0);
+
     const permit = await this.prisma.citesPermit.create({
       data: {
         supplierOrgId: supplier.id,
         permitNo: input.permitNo,
-        speciesCode: input.speciesCode,
-        quotaKg: new Prisma.Decimal(input.quotaKg),
+        // 证书级兼容列：首行物种 + 全证总配额
+        speciesCode: lines[0]!.speciesCode,
+        quotaKg: new Prisma.Decimal(totalQuota),
         issueDate: new Date(input.issueDate),
         expiryDate: new Date(input.expiryDate),
         createdBy: user.sub,
+        lines: {
+          create: lines.map((l) => ({
+            speciesCode: l.speciesCode,
+            quotaKg: new Prisma.Decimal(l.quotaKg),
+            labelRange: l.labelRange,
+            createdBy: user.sub,
+          })),
+        },
       },
+      include: { lines: true },
     });
-    return { permitNo: permit.permitNo, quotaKg: permit.quotaKg };
+    return {
+      permitNo: permit.permitNo,
+      quotaKg: permit.quotaKg,
+      lines: permit.lines.map((l) => ({ speciesCode: l.speciesCode, quotaKg: l.quotaKg, labelRange: l.labelRange })),
+    };
   }
 
-  async deductCites(permitNo: string, kg: number, user: JwtPayload) {
-    const permit = await this.prisma.citesPermit.findUnique({ where: { permitNo } });
+  /** 核销配额：指定 speciesCode 时扣对应物种行，否则扣单物种证 */
+  async deductCites(permitNo: string, kg: number, user: JwtPayload, speciesCode?: string) {
+    const permit = await this.prisma.citesPermit.findUnique({ where: { permitNo }, include: { lines: { where: { deletedAt: null } } } });
     if (!permit) throw new NotFoundException({ code: "NOT_FOUND", detail: "许可证不存在" });
     if (permit.expiryDate < new Date()) throw new ConflictException({ code: "CITES_QUOTA_EXCEEDED", detail: "许可证已过期" });
-    const remaining = permit.quotaKg.minus(permit.usedKg);
-    if (remaining.lt(kg)) {
-      throw new ConflictException({ code: "CITES_QUOTA_EXCEEDED", detail: `CITES 配额不足：剩余 ${remaining} kg` });
+    if (permit.status !== "VALID") throw new ConflictException({ code: "CITES_QUOTA_EXCEEDED", detail: `许可证状态为 ${permit.status}` });
+
+    const line = speciesCode
+      ? permit.lines.find((l) => l.speciesCode === speciesCode)
+      : permit.lines.length === 1
+        ? permit.lines[0]
+        : undefined;
+    if (speciesCode && !line) {
+      throw new NotFoundException({ code: "NOT_FOUND", detail: `该证不含物种 ${speciesCode}` });
     }
-    const updated = await this.prisma.citesPermit.update({
-      where: { permitNo },
-      data: { usedKg: { increment: new Prisma.Decimal(kg) }, updatedBy: user.sub, version: { increment: 1 } },
+    if (!line && permit.lines.length > 1) {
+      throw new ConflictException({ code: "VALIDATION_FAILED", detail: "该证含多个物种，请指定 speciesCode" });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (line) {
+        const remaining = line.quotaKg.minus(line.usedKg);
+        if (remaining.lt(kg)) {
+          throw new ConflictException({ code: "CITES_QUOTA_EXCEEDED", detail: `物种 ${line.speciesCode} 配额不足：剩余 ${remaining} kg` });
+        }
+        await tx.citesPermitLine.update({
+          where: { id: line.id },
+          data: { usedKg: { increment: new Prisma.Decimal(kg) }, updatedBy: user.sub, version: { increment: 1 } },
+        });
+      }
+      // 证书级累计始终同步，便于总量视图与既有报表
+      const certRemaining = permit.quotaKg.minus(permit.usedKg);
+      if (certRemaining.lt(kg)) {
+        throw new ConflictException({ code: "CITES_QUOTA_EXCEEDED", detail: `CITES 配额不足：剩余 ${certRemaining} kg` });
+      }
+      const updated = await tx.citesPermit.update({
+        where: { permitNo },
+        data: { usedKg: { increment: new Prisma.Decimal(kg) }, updatedBy: user.sub, version: { increment: 1 } },
+      });
+      await this.audit.logInTx(tx, {
+        actorId: user.sub, action: "CITES_DEDUCT", targetType: "CitesPermit", targetId: permit.id,
+        diff: { kg, speciesCode: line?.speciesCode, usedKg: updated.usedKg.toString() },
+      });
+      return { permitNo, speciesCode: line?.speciesCode, usedKg: updated.usedKg, remainingKg: updated.quotaKg.minus(updated.usedKg) };
     });
-    await this.audit.log({ actorId: user.sub, action: "CITES_DEDUCT", targetType: "CitesPermit", targetId: permit.id, diff: { kg, usedKg: updated.usedKg.toString() } });
-    return { permitNo, usedKg: updated.usedKg, remainingKg: updated.quotaKg.minus(updated.usedKg) };
   }
 
+  /** 配额驾驶舱数据：按证聚合 + 物种行明细 + 临期天数 */
   async listCitesPermits(expiringDays: number | undefined, user: JwtPayload) {
     const where: Prisma.CitesPermitWhereInput = { deletedAt: null };
     if (!this.isStaff(user)) where.supplierOrgId = user.orgId ?? "";
     if (expiringDays) where.expiryDate = { lte: new Date(Date.now() + expiringDays * 86_400_000) };
-    const permits = await this.prisma.citesPermit.findMany({ where, orderBy: { expiryDate: "asc" } });
+    const permits = await this.prisma.citesPermit.findMany({
+      where,
+      orderBy: { expiryDate: "asc" },
+      include: { lines: { where: { deletedAt: null }, orderBy: { speciesCode: "asc" } } },
+    });
+    const today = Date.now();
     return permits.map((p) => ({
       permitNo: p.permitNo,
       speciesCode: p.speciesCode,
       quotaKg: p.quotaKg,
       usedKg: p.usedKg,
       remainingKg: p.quotaKg.minus(p.usedKg),
+      issueDate: p.issueDate,
       expiryDate: p.expiryDate,
+      daysToExpiry: Math.ceil((p.expiryDate.getTime() - today) / 86_400_000),
       status: p.status,
+      lines: p.lines.map((l) => ({
+        speciesCode: l.speciesCode,
+        quotaKg: l.quotaKg,
+        usedKg: l.usedKg,
+        remainingKg: l.quotaKg.minus(l.usedKg),
+        labelRange: l.labelRange,
+      })),
     }));
   }
 

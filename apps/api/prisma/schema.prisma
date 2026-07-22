@@ -1089,7 +1089,98 @@ enum OrderType {
   RFQ
   FUTURES
   BROKER
+  /** 样品单（R1.5-4）：免 MOQ、小额、快递发运，用于转化正式单 */
+  SAMPLE
 
+  @@schema("core")
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  TERMINATED
+
+  @@schema("core")
+}
+
+/**
+ * 框架合同（R1.5-2）：一年期总量框架 + 分批补充协议。
+ * 真实案例：HZBZLH20251008（合同期一年、总量 ±5% 浮动、按最终灌装重量结算）。
+ */
+model TradeContract {
+  id             String         @id @default(uuid()) @db.Uuid
+  publicCode     String         @unique
+  contractNo     String
+  buyerOrgId     String         @db.Uuid
+  supplierOrgId  String         @db.Uuid
+  currency       String         @default("EUR")
+  /** 框架总量（kg）；分批发货累计不得超出 totalQtyKg × (1 + tolerancePct) */
+  totalQtyKg     Decimal?       @db.Decimal(12, 3)
+  tolerancePct   Decimal        @default(0) @db.Decimal(5, 2)
+  unitPrice      Decimal?       @db.Decimal(14, 2)
+  incoterms      String?
+  /** 付款条款模板：新订单据此生成里程碑 */
+  paymentTerms   Json?
+  signedAt       DateTime?
+  effectiveFrom  DateTime?
+  effectiveTo    DateTime?
+  status         ContractStatus @default(DRAFT)
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  createdBy      String?        @db.Uuid
+  updatedBy      String?        @db.Uuid
+  deletedAt      DateTime?
+  version        Int            @default(0)
+
+  @@index([buyerOrgId, status])
+  @@index([supplierOrgId, status])
+  @@map("trade_contracts")
+  @@schema("core")
+}
+
+enum MilestoneStatus {
+  PENDING
+  PAID
+  WAIVED
+  OVERDUE
+
+  @@schema("core")
+}
+
+/**
+ * 付款里程碑（R1.5-1）：把"见 CITES 付 50% + 发货前结清尾款"这类真实条款结构化。
+ * blocksShipment=true 的里程碑未付清时，发货会被拦截。
+ */
+model PaymentMilestone {
+  id            String          @id @default(uuid()) @db.Uuid
+  orderId       String          @db.Uuid
+  order         TradeOrder      @relation(fields: [orderId], references: [id])
+  seq           Int
+  label         String
+  /** 触发条件说明（如「收到 CITES 扫描件后 1 个工作日」）；仅描述，不做自动判定 */
+  triggerNote   String?
+  percentage    Decimal?        @db.Decimal(5, 2)
+  amount        Decimal         @db.Decimal(14, 2)
+  currency      String
+  dueAt         DateTime?
+  /** 发货前必须付清 */
+  blocksShipment Boolean        @default(true)
+  status        MilestoneStatus @default(PENDING)
+  paymentId     String?         @db.Uuid
+  paidAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  createdBy     String?         @db.Uuid
+  updatedBy     String?         @db.Uuid
+  deletedAt     DateTime?
+  version       Int             @default(0)
+
+  @@unique([orderId, seq])
+  @@index([orderId, status])
+  @@map("payment_milestones")
   @@schema("core")
 }
 
@@ -1097,6 +1188,8 @@ model TradeOrder {
   id                String      @id @default(uuid()) @db.Uuid
   publicCode        String      @unique
   orderType         OrderType
+  /** 所属框架合同（R1.5-2）；直采单为空 */
+  contractId        String?     @db.Uuid
   buyerOrgId        String      @db.Uuid
   supplierOrgId     String      @db.Uuid
   brokerUserId      String?     @db.Uuid
@@ -1114,6 +1207,7 @@ model TradeOrder {
   completedAt       DateTime?
   notes             String?
   items             OrderItem[]
+  milestones        PaymentMilestone[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   createdBy         String?     @db.Uuid
@@ -1124,6 +1218,7 @@ model TradeOrder {
   @@index([buyerOrgId, status])
   @@index([supplierOrgId, status])
   @@index([brokerUserId])
+  @@index([contractId])
   @@map("trade_orders")
   @@schema("core")
 }
@@ -1640,6 +1735,11 @@ model CustomsDeclaration {
   @@schema("core")
 }
 
+/**
+ * CITES 许可证（R1.5-3）：证书级信息。
+ * 真实证书常为一证多物种（如 2025CN/EC00017/HBB 含杂交鲟 25kg + 施氏鲟 25kg），
+ * 物种与配额明细见 CitesPermitLine；speciesCode/quotaKg/usedKg 为单物种证的兼容列。
+ */
 model CitesPermit {
   id            String     @id @default(uuid()) @db.Uuid
   supplierOrgId String     @db.Uuid
@@ -1650,6 +1750,7 @@ model CitesPermit {
   issueDate     DateTime
   expiryDate    DateTime
   status        CertStatus @default(VALID)
+  lines         CitesPermitLine[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   createdBy     String?    @db.Uuid
@@ -1660,6 +1761,29 @@ model CitesPermit {
   @@index([expiryDate])
   @@index([supplierOrgId])
   @@map("cites_permits")
+  @@schema("core")
+}
+
+/** 许可证物种行：一证多物种，各自配额与罐贴标号段 */
+model CitesPermitLine {
+  id           String      @id @default(uuid()) @db.Uuid
+  permitId     String      @db.Uuid
+  permit       CitesPermit @relation(fields: [permitId], references: [id])
+  speciesCode  String
+  quotaKg      Decimal     @db.Decimal(12, 3)
+  usedKg       Decimal     @default(0) @db.Decimal(12, 3)
+  /** 罐贴标签号段（证书第 8 栏），如 021279-021478 */
+  labelRange   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdBy    String?     @db.Uuid
+  updatedBy    String?     @db.Uuid
+  deletedAt    DateTime?
+  version      Int         @default(0)
+
+  @@unique([permitId, speciesCode])
+  @@index([permitId])
+  @@map("cites_permit_lines")
   @@schema("core")
 }
 

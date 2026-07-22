@@ -6,7 +6,11 @@ import { api } from "@/lib/api";
 
 interface Contact { id: string; name: string; phone: string | null; email: string | null; position: string | null; isPrimary: boolean }
 interface Certificate { id: string; certType: string; certNo: string; issuer: string | null; issueDate: string | null; expiryDate: string | null; status: string }
-interface Permit { permitNo: string; speciesCode: string; quotaKg: string; usedKg: string; expiryDate: string; status: string }
+interface PermitLine { speciesCode: string; quotaKg: string; usedKg: string; remainingKg: string; labelRange: string | null }
+interface Permit {
+  permitNo: string; speciesCode: string; quotaKg: string; usedKg: string;
+  expiryDate: string; daysToExpiry: number; status: string; lines: PermitLine[];
+}
 
 const CERT_TYPES = ["EXPORT_LICENSE", "SC", "HACCP", "ISO22000", "CITES", "EU_ESTABLISHMENT", "OTHERS"];
 const d10 = (v: string | null) => (v ? v.slice(0, 10) : "—");
@@ -23,7 +27,10 @@ export function SupplierProfile({ dict, orgCode }: { dict: Dictionary; orgCode?:
   const [message, setMessage] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", position: "", phone: "", email: "", isPrimary: false });
   const [certForm, setCertForm] = useState({ certType: "EXPORT_LICENSE", certNo: "", issuer: "", issueDate: "", expiryDate: "" });
-  const [permitForm, setPermitForm] = useState({ permitNo: "", speciesCode: "SCHDAU", quotaKg: 50, issueDate: "", expiryDate: "" });
+  const [permitForm, setPermitForm] = useState<{
+    permitNo: string; issueDate: string; expiryDate: string;
+    lines: { speciesCode: string; quotaKg: number; labelRange: string }[];
+  }>({ permitNo: "", issueDate: "", expiryDate: "", lines: [{ speciesCode: "SCHDAU", quotaKg: 50, labelRange: "" }] });
 
   const refresh = useCallback(async () => {
     const [c, ce, p] = await Promise.all([
@@ -153,46 +160,107 @@ export function SupplierProfile({ dict, orgCode }: { dict: Dictionary; orgCode?:
         {permits.length === 0 ? (
           <p className="text-xs" style={{ color: "var(--color-muted)" }}>{t.empty}</p>
         ) : (
-          <table className="w-full text-sm">
-            <tbody>
-              {permits.map((p) => {
-                const used = Number(p.usedKg);
-                const quota = Number(p.quotaKg);
-                return (
-                  <tr key={p.permitNo} className="border-t" style={{ borderColor: "var(--color-border)" }}>
-                    <td className="py-1.5 font-mono text-xs">{p.permitNo}</td>
-                    <td className="py-1.5">{p.speciesCode}</td>
-                    <td className="py-1.5 text-right" style={{ color: "var(--color-muted)" }}>
-                      {used} / {quota} kg（{t.remaining} {(quota - used).toFixed(0)}）
-                    </td>
-                    <td className="py-1.5 pl-2 text-right text-xs" style={{ color: "var(--color-muted)" }}>{t.expiry} {d10(p.expiryDate)}</td>
-                    <td className="py-1.5 pl-2 text-right"><span className="badge">{p.status}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          // 配额驾驶舱：一证多物种逐行展示用量条与临期提醒（R1.5-3）
+          <div className="space-y-3">
+            {permits.map((p) => {
+              const expiringSoon = p.status === "VALID" && p.daysToExpiry <= 60;
+              const expired = p.status !== "VALID" || p.daysToExpiry < 0;
+              return (
+                <div key={p.permitNo} className="rounded-md border p-2.5" style={{ borderColor: "var(--color-border)" }}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-medium">{p.permitNo}</span>
+                    <span className="badge">{p.status}</span>
+                    <span
+                      className="text-xs"
+                      style={{ color: expired ? "var(--color-warning)" : expiringSoon ? "var(--color-warning)" : "var(--color-muted)" }}
+                    >
+                      {t.expiry} {d10(p.expiryDate)}
+                      {expired ? ` · ${t.expiredTag}` : expiringSoon ? ` · ${t.expiringIn.replace("{days}", String(p.daysToExpiry))}` : ""}
+                    </span>
+                    <span className="ml-auto text-xs" style={{ color: "var(--color-muted)" }}>
+                      {t.remaining} {(Number(p.quotaKg) - Number(p.usedKg)).toFixed(0)} / {Number(p.quotaKg).toFixed(0)} kg
+                    </span>
+                  </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {(p.lines.length > 0 ? p.lines : [{ speciesCode: p.speciesCode, quotaKg: p.quotaKg, usedKg: p.usedKg, remainingKg: String(Number(p.quotaKg) - Number(p.usedKg)), labelRange: null }]).map((l) => {
+                      const pct = Number(l.quotaKg) > 0 ? (Number(l.usedKg) / Number(l.quotaKg)) * 100 : 0;
+                      return (
+                        <li key={l.speciesCode} className="space-y-0.5 text-xs">
+                          <div className="flex justify-between">
+                            <span>
+                              {l.speciesCode}
+                              {l.labelRange && <span style={{ color: "var(--color-muted)" }}> · {l.labelRange}</span>}
+                            </span>
+                            <span style={{ color: "var(--color-muted)" }}>
+                              {Number(l.usedKg).toFixed(0)} / {Number(l.quotaKg).toFixed(0)} kg（{t.remaining} {Number(l.remainingKg).toFixed(0)}）
+                            </span>
+                          </div>
+                          <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--color-border)" }}>
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: "var(--color-accent)" }} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         )}
+        {/* 一证多物种：可继续添加物种行（R1.5-3） */}
         <form
-          className="grid gap-2 sm:grid-cols-5"
+          className="space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
             void act(async () => {
               await api("POST", "/customs/cites-permits", {
-                supplierOrgCode: orgCode, permitNo: permitForm.permitNo, speciesCode: permitForm.speciesCode,
-                quotaKg: Number(permitForm.quotaKg),
+                supplierOrgCode: orgCode,
+                permitNo: permitForm.permitNo,
                 issueDate: permitForm.issueDate || new Date().toISOString().slice(0, 10),
                 expiryDate: permitForm.expiryDate,
+                lines: permitForm.lines.map((l) => ({
+                  speciesCode: l.speciesCode, quotaKg: Number(l.quotaKg), labelRange: l.labelRange || undefined,
+                })),
               });
-              setPermitForm({ permitNo: "", speciesCode: "SCHDAU", quotaKg: 50, issueDate: "", expiryDate: "" });
+              setPermitForm({ permitNo: "", issueDate: "", expiryDate: "", lines: [{ speciesCode: "SCHDAU", quotaKg: 50, labelRange: "" }] });
             });
           }}
         >
-          <input className="input" placeholder={t.permitNo} required value={permitForm.permitNo} onChange={(e) => setPermitForm({ ...permitForm, permitNo: e.target.value })} />
-          <input className="input" placeholder={t.species} required value={permitForm.speciesCode} onChange={(e) => setPermitForm({ ...permitForm, speciesCode: e.target.value })} />
-          <input className="input" type="number" step="0.001" placeholder={t.quotaKg} required value={permitForm.quotaKg} onChange={(e) => setPermitForm({ ...permitForm, quotaKg: Number(e.target.value) })} />
-          <input className="input" type="date" required title={t.expiry} value={permitForm.expiryDate} onChange={(e) => setPermitForm({ ...permitForm, expiryDate: e.target.value })} />
-          <button className="btn btn-primary" type="submit">{t.add}</button>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input className="input" placeholder={t.permitNo} required value={permitForm.permitNo} onChange={(e) => setPermitForm({ ...permitForm, permitNo: e.target.value })} />
+            <input className="input" type="date" title={t.issueDate} value={permitForm.issueDate} onChange={(e) => setPermitForm({ ...permitForm, issueDate: e.target.value })} />
+            <input className="input" type="date" required title={t.expiry} value={permitForm.expiryDate} onChange={(e) => setPermitForm({ ...permitForm, expiryDate: e.target.value })} />
+          </div>
+          {permitForm.lines.map((line, i) => (
+            <div key={i} className="grid gap-2 sm:grid-cols-4">
+              <input
+                className="input" placeholder={t.species} required value={line.speciesCode}
+                onChange={(e) => setPermitForm({ ...permitForm, lines: permitForm.lines.map((l, j) => (j === i ? { ...l, speciesCode: e.target.value } : l)) })}
+              />
+              <input
+                className="input" type="number" step="0.001" placeholder={t.quotaKg} required value={line.quotaKg}
+                onChange={(e) => setPermitForm({ ...permitForm, lines: permitForm.lines.map((l, j) => (j === i ? { ...l, quotaKg: Number(e.target.value) } : l)) })}
+              />
+              <input
+                className="input" placeholder={t.labelRange} value={line.labelRange}
+                onChange={(e) => setPermitForm({ ...permitForm, lines: permitForm.lines.map((l, j) => (j === i ? { ...l, labelRange: e.target.value } : l)) })}
+              />
+              {permitForm.lines.length > 1 && (
+                <button type="button" className="text-xs" style={{ color: "var(--color-warning)" }} onClick={() => setPermitForm({ ...permitForm, lines: permitForm.lines.filter((_, j) => j !== i) })}>
+                  {t.remove}
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button
+              type="button" className="btn btn-outline text-xs"
+              onClick={() => setPermitForm({ ...permitForm, lines: [...permitForm.lines, { speciesCode: "", quotaKg: 0, labelRange: "" }] })}
+            >
+              + {t.addSpecies}
+            </button>
+            <button className="btn btn-primary" type="submit">{t.add}</button>
+          </div>
         </form>
       </div>
     </section>

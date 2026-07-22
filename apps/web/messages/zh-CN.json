@@ -727,6 +727,11 @@
     "permitNo": "许可证号",
     "species": "物种代码",
     "quotaKg": "配额(kg)",
-    "remaining": "剩余"
+    "remaining": "剩余",
+    "labelRange": "罐贴标号段(选填)",
+    "addSpecies": "添加物种行",
+    "issueDate": "签发日期",
+    "expiredTag": "已过期",
+    "expiringIn": "{days} 天后到期"
   }
 }

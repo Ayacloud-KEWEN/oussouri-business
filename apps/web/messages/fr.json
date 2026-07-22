@@ -727,6 +727,11 @@
     "permitNo": "N° de permis",
     "species": "Code espèce",
     "quotaKg": "Quota (kg)",
-    "remaining": "restant"
+    "remaining": "restant",
+    "labelRange": "Plage d'étiquettes (option)",
+    "addSpecies": "Ajouter une espèce",
+    "issueDate": "Date de délivrance",
+    "expiredTag": "expiré",
+    "expiringIn": "expire dans {days} jours"
   }
 }

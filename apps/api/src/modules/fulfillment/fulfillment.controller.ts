@@ -54,17 +54,26 @@ class DeclTransitionDto {
   @IsOptional() @IsString() @MaxLength(200) inspectionResult?: string;
 }
 
+class PermitLineDto {
+  @IsString() speciesCode!: string;
+  @IsNumber() @IsPositive() quotaKg!: number;
+  @IsOptional() @IsString() @MaxLength(100) labelRange?: string;
+}
+
 class CreatePermitDto {
   @IsString() supplierOrgCode!: string;
   @IsString() @MaxLength(50) permitNo!: string;
-  @IsString() speciesCode!: string;
-  @IsNumber() @IsPositive() quotaKg!: number;
   @IsDateString() issueDate!: string;
   @IsDateString() expiryDate!: string;
+  // 一证多物种（R1.5-3）；单物种证仍可直接给 speciesCode + quotaKg
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => PermitLineDto) lines?: PermitLineDto[];
+  @IsOptional() @IsString() speciesCode?: string;
+  @IsOptional() @IsNumber() @IsPositive() quotaKg?: number;
 }
 
 class DeductDto {
   @IsNumber() @IsPositive() kg!: number;
+  @IsOptional() @IsString() speciesCode?: string;
 }
 
 class MaskRegionDto {
@@ -180,7 +189,7 @@ export class FulfillmentController {
   @Roles("CUSTOMS_OFFICER", "ADMIN")
   @Post("customs/cites-permits/:permitNo/deduct")
   deduct(@Param("permitNo") permitNo: string, @Body() dto: DeductDto, @CurrentUser() user: JwtPayload) {
-    return this.fulfillment.deductCites(permitNo, dto.kg, user);
+    return this.fulfillment.deductCites(permitNo, dto.kg, user, dto.speciesCode);
   }
 
   @Roles("SUPPLIER", "CUSTOMS_OFFICER", "ADMIN")
