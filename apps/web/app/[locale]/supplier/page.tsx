@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
@@ -447,10 +448,15 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
           {orders.map((o) => (
             <div key={o.code} className="card text-sm">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-mono">{o.code}</span>
+                <Link href={`/${locale}/orders/${o.code}`} className="font-mono underline-offset-2 hover:underline" style={{ color: "var(--color-accent)" }}>
+                  {o.code}
+                </Link>
                 <span className="badge">{o.status}</span>
                 <span style={{ color: "var(--color-muted)" }}>{dict.supplier.counterparty}: {o.counterpartyCode}</span>
                 <span className="font-medium">€{o.grandTotal}</span>
+                <Link href={`/${locale}/orders/${o.code}`} className="text-xs" style={{ color: "var(--color-accent)" }}>
+                  {dict.orderDetail.viewDetail} ›
+                </Link>
                 <div className="ml-auto flex gap-2">
                   {o.status === "PAID_ESCROW" && (
                     <button className="btn btn-primary" onClick={() => act(() => api("POST", `/supplier/orders/${o.code}/confirm`, {}))}>{dict.supplier.confirm}</button>

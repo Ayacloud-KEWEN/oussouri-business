@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
@@ -179,9 +180,14 @@ export default function BuyerPage({ params }: { params: Promise<{ locale: string
           {orders.map((o) => (
             <div key={o.code} className="card space-y-2">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-mono text-sm">{o.code}</span>
+                <Link href={`/${locale}/orders/${o.code}`} className="font-mono text-sm underline-offset-2 hover:underline" style={{ color: "var(--color-accent)" }}>
+                  {o.code}
+                </Link>
                 <span className="badge">{o.status}</span>
                 <span className="text-sm" style={{ color: "var(--color-muted)" }}>{dict.buyer.counterparty}: {o.counterpartyCode}</span>
+                <Link href={`/${locale}/orders/${o.code}`} className="text-xs" style={{ color: "var(--color-accent)" }}>
+                  {dict.orderDetail.viewDetail} ›
+                </Link>
                 <span className="ml-auto font-medium">€{o.grandTotal}</span>
               </div>
               <div className="text-xs" style={{ color: "var(--color-muted)" }}>

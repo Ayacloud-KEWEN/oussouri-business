@@ -93,14 +93,25 @@ export class FulfillmentService {
       include: { legs: { where: { deletedAt: null }, orderBy: { seq: "asc" } } },
     });
     if (!shipment) return null;
-    const breaches = await this.prisma.temperatureLog.count({ where: { shipmentId: shipment.id, breached: true } });
+    // 温度明细供履约页画冷链曲线（R1.6-1）；上限 200 条防止长航程刷屏
+    const temperatures = await this.prisma.temperatureLog.findMany({
+      where: { shipmentId: shipment.id },
+      orderBy: { recordedAt: "asc" },
+      take: 200,
+      select: { recordedAt: true, tempC: true, breached: true, source: true },
+    });
     return {
       status: shipment.status,
       incoterms: shipment.incoterms,
       packages: shipment.packages,
       grossWeightKg: shipment.grossWeightKg,
-      legs: shipment.legs.map((l) => ({ seq: l.seq, mode: l.mode, carrier: l.carrier, waybillNo: l.waybillNo, fromCode: l.fromCode, toCode: l.toCode, status: l.status })),
-      temperatureBreaches: breaches,
+      legs: shipment.legs.map((l) => ({
+        seq: l.seq, mode: l.mode, carrier: l.carrier, waybillNo: l.waybillNo,
+        fromCode: l.fromCode, toCode: l.toCode, status: l.status,
+        departAt: l.departAt, arriveAt: l.arriveAt,
+      })),
+      temperatures,
+      temperatureBreaches: temperatures.filter((t) => t.breached).length,
     };
   }
 

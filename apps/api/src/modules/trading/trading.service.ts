@@ -270,4 +270,77 @@ export class TradingService {
       items: o.items.map((i) => ({ qty: i.qty, unitPrice: i.unitPrice, lineTotal: i.lineTotal, snapshot: i.snapshot })),
     }));
   }
+
+  /**
+   * 订单详情（R1.6-1 履约跟踪页数据源）：核心信息 + 明细 + 付款 + 报关 + 单证 + 状态时间线。
+   * 运单/温度与单证齐备度由 FulfillmentService 提供；对手方一律只输出平台代码。
+   */
+  async getOrderDetail(code: string, user: JwtPayload) {
+    const order = await this.prisma.tradeOrder.findFirst({
+      where: { publicCode: code, deletedAt: null },
+      include: { items: { where: { deletedAt: null } } },
+    });
+    if (!order) throw new NotFoundException({ code: "NOT_FOUND", detail: "订单不存在" });
+
+    const isBuyer = order.buyerOrgId === user.orgId;
+    const isSupplier = order.supplierOrgId === user.orgId;
+    const isStaff = user.roles.some((r) => ["ADMIN", "SUPER_ADMIN", "BROKER", "FINANCE", "CUSTOMS_OFFICER", "LOGISTICS_OPERATOR"].includes(r));
+    if (!isBuyer && !isSupplier && !isStaff) {
+      throw new ForbiddenException({ code: "PERM_SCOPE_VIOLATION", detail: "仅本组织订单" });
+    }
+
+    const counterpartyId = isBuyer ? order.supplierOrgId : order.buyerOrgId;
+    const [counterparty, payments, declarations, documents, transitions] = await Promise.all([
+      this.prisma.organization.findUnique({ where: { id: counterpartyId }, select: { publicCode: true, countryIso2: true } }),
+      this.prisma.payment.findMany({
+        where: { orderId: order.id, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { method: true, amount: true, currency: true, status: true, paidAt: true, createdAt: true },
+      }),
+      this.prisma.customsDeclaration.findMany({
+        where: { orderId: order.id, deletedAt: null },
+        select: { direction: true, declarationNo: true, brokerName: true, status: true, declaredAt: true, clearedAt: true, inspectionResult: true },
+      }),
+      this.prisma.document.findMany({
+        where: { refType: "ORDER", refId: order.id, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { docType: true, docNo: true, issuer: true, issueDate: true, expiryDate: true, status: true },
+      }),
+      // 状态流转时间线（审计域）
+      this.prisma.auditLog.findMany({
+        where: { targetType: "TradeOrder", targetId: order.id },
+        orderBy: { occurredAt: "asc" },
+        select: { action: true, occurredAt: true, diff: true, actorRole: true },
+      }),
+    ]);
+
+    return {
+      code: order.publicCode,
+      status: order.status,
+      orderType: order.orderType,
+      side: isBuyer ? "BUYER" : isSupplier ? "SUPPLIER" : "STAFF",
+      counterpartyCode: counterparty?.publicCode ?? "UNKNOWN",
+      counterpartyCountry: counterparty?.countryIso2 ?? null,
+      currency: order.currency,
+      itemsTotal: order.itemsTotal,
+      grandTotal: order.grandTotal,
+      // 佣金对买家不展示（买家只看货款总额）
+      commissionAmount: isBuyer ? undefined : order.commissionAmount,
+      incoterms: order.incoterms,
+      notes: order.notes,
+      placedAt: order.placedAt,
+      completedAt: order.completedAt,
+      disputeUntil: order.disputeUntil,
+      items: order.items.map((i) => ({ qty: i.qty, unitPrice: i.unitPrice, lineTotal: i.lineTotal, snapshot: i.snapshot })),
+      payments,
+      declarations,
+      documents,
+      timeline: transitions.map((t) => ({
+        action: t.action,
+        at: t.occurredAt,
+        actorRole: t.actorRole,
+        to: (t.diff as { to?: string } | null)?.to ?? null,
+      })),
+    };
+  }
 }

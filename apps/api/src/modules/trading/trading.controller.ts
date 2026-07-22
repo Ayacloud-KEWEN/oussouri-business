@@ -50,6 +50,12 @@ export class TradingController {
     return this.trading.listOrders(user, "supplier");
   }
 
+  /** 订单详情（买卖双方与内部角色共用；对手方仅输出平台代码） */
+  @Get("orders/:code")
+  orderDetail(@Param("code") code: string, @CurrentUser() user: JwtPayload) {
+    return this.trading.getOrderDetail(code, user);
+  }
+
   @Roles("BUYER") @Post("buyer/orders/:code/cancel")
   cancel(@Param("code") code: string, @Body() dto: TransitionDto, @CurrentUser() user: JwtPayload) {
     return this.trading.transition(code, "CANCELLED", user, { reason: dto.reason });
