@@ -33,6 +33,7 @@ async function seedCodeRules(): Promise<void> {
     { entityType: "FUTURES", prefix: "FUT", pattern: "{prefix}-{date:YYYYMMDD}-{seq:4}", seqLength: 4 },
     { entityType: "INVOICE", prefix: "INV", pattern: "{prefix}-{date:YYYYMMDD}-{seq:5}", seqLength: 5 },
     { entityType: "OPPORTUNITY", prefix: "OPP", pattern: "{prefix}-{seq:6}" },
+    { entityType: "CONTRACT", prefix: "CTR", pattern: "{prefix}-{date:YYYYMMDD}-{seq:4}", seqLength: 4 },
   ];
   for (const rule of rules) {
     await prisma.codeRule.upsert({ where: { entityType: rule.entityType }, create: rule, update: {} });

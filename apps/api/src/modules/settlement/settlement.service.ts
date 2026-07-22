@@ -6,7 +6,11 @@ import { PrismaService } from "../../kernel/prisma/prisma.service";
 import { AuditService } from "../../kernel/audit/audit.service";
 import { StripePort } from "./stripe.port";
 import { TradingService } from "../trading/trading.service";
+import { MilestoneService } from "../trading/milestone.service";
 import type { JwtPayload } from "../iam/auth.types";
+
+/** 分期付款可继续收款的订单状态：发货前均可付后续期数（R1.5-1） */
+const PAYABLE_STATES = ["PLACED", "PAID_ESCROW", "CONFIRMED", "PREPARING"];
 
 const SYSTEM_ACTOR: JwtPayload = { sub: "00000000-0000-0000-0000-000000000000", roles: ["SYSTEM"] };
 
@@ -20,6 +24,7 @@ export class SettlementService {
     private readonly audit: AuditService,
     private readonly stripe: StripePort,
     private readonly trading: TradingService,
+    private readonly milestones: MilestoneService,
   ) {}
 
   /** Buyer 发起支付：创建 PaymentIntent（幂等：同订单未支付复用） */
@@ -27,19 +32,45 @@ export class SettlementService {
     const order = await this.prisma.tradeOrder.findFirst({ where: { publicCode: orderCode, deletedAt: null } });
     if (!order) throw new NotFoundException({ code: "NOT_FOUND", detail: "订单不存在" });
     if (order.buyerOrgId !== user.orgId) throw new ForbiddenException({ code: "PERM_SCOPE_VIOLATION", detail: "仅本组织订单" });
-    if (order.status !== "PLACED") throw new ConflictException({ code: "STATE_TRANSITION_DENIED", detail: "订单当前不可支付" });
 
-    const existing = await this.prisma.payment.findFirst({
+    // 分期订单（R1.5-1）：本次只收最早一期未付里程碑，否则收全额
+    const nextMilestone = await this.prisma.paymentMilestone.findFirst({
       where: { orderId: order.id, status: "PENDING", deletedAt: null },
+      orderBy: { seq: "asc" },
     });
-    if (existing?.stripePaymentIntentId) {
-      return { paymentId: existing.id, intentId: existing.stripePaymentIntentId };
+    // 一次性全额只在 PLACED 可付；分期订单在发货前的各状态都可继续付后续期数
+    const payableStates = nextMilestone ? PAYABLE_STATES : ["PLACED"];
+    if (!payableStates.includes(order.status)) {
+      throw new ConflictException({
+        code: "STATE_TRANSITION_DENIED",
+        detail: nextMilestone ? `订单状态 ${order.status} 不可再付款` : "订单当前不可支付",
+      });
+    }
+    if (!nextMilestone && order.status !== "PLACED") {
+      throw new ConflictException({ code: "STATE_TRANSITION_DENIED", detail: "订单当前不可支付" });
     }
 
-    const amountMinor = order.grandTotal.mul(100).toNumber();
+    // 同期未完成的支付意图直接复用（幂等）
+    const existing = await this.prisma.payment.findFirst({
+      where: { orderId: order.id, status: "PENDING", deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existing?.stripePaymentIntentId) {
+      return {
+        paymentId: existing.id,
+        intentId: existing.stripePaymentIntentId,
+        amount: existing.amount.toString(),
+        milestone: nextMilestone ? { seq: nextMilestone.seq, label: nextMilestone.label } : null,
+      };
+    }
+
+    const payAmount = nextMilestone?.amount ?? order.grandTotal;
+
+    const amountMinor = payAmount.mul(100).toNumber();
     const intent = await this.stripe.createPaymentIntent(Math.round(amountMinor), order.currency, {
       orderCode: order.publicCode,
       orderId: order.id,
+      ...(nextMilestone ? { milestoneSeq: String(nextMilestone.seq), milestoneLabel: nextMilestone.label } : {}),
     });
     const payment = await this.prisma.payment.create({
       data: {
@@ -48,12 +79,18 @@ export class SettlementService {
         refId: order.id,
         method: "STRIPE_CARD",
         stripePaymentIntentId: intent.intentId,
-        amount: order.grandTotal,
+        amount: payAmount,
         currency: order.currency,
         createdBy: user.sub,
       },
     });
-    return { paymentId: payment.id, intentId: intent.intentId, clientSecret: intent.clientSecret };
+    return {
+      paymentId: payment.id,
+      intentId: intent.intentId,
+      clientSecret: intent.clientSecret,
+      amount: payAmount.toString(),
+      milestone: nextMilestone ? { seq: nextMilestone.seq, label: nextMilestone.label } : null,
+    };
   }
 
   /** Stripe Webhook：幂等处理支付成功 → 入托管账 + 订单状态迁移 */
@@ -86,6 +123,8 @@ export class SettlementService {
           { journalId, account: "ESCROW_HELD", orderId: order.id, direction: "CREDIT", amount: payment.amount, currency: payment.currency },
         ],
       });
+      // 分期订单：把本次金额归集到最早未付里程碑（R1.5-1）
+      await this.milestones.settleByPayment(tx, order.id, payment.id, payment.amount);
       await this.audit.logInTx(tx, {
         action: "PAYMENT_SUCCEEDED",
         targetType: "TradeOrder",
@@ -93,8 +132,10 @@ export class SettlementService {
         diff: { intentId, amount: payment.amount.toString() },
       });
     });
-    // 状态机：PLACED → PAID_ESCROW（SYSTEM 角色）
-    await this.trading.transition(order.publicCode, "PAID_ESCROW", SYSTEM_ACTOR, { asSystem: true, reason: `stripe:${intentId}` });
+    // 状态机：PLACED → PAID_ESCROW（SYSTEM 角色）；分期订单首期到账即可推进，尾款由发货守卫把关
+    if (order.status === "PLACED") {
+      await this.trading.transition(order.publicCode, "PAID_ESCROW", SYSTEM_ACTOR, { asSystem: true, reason: `stripe:${intentId}` });
+    }
   }
 
   /** 签收完成后放款（OrderDelivered 事件消费者 → 争议期满后 COMPLETED + 分账） */

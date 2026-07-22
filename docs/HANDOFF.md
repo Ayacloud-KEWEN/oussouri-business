@@ -101,6 +101,12 @@ pnpm --filter @oussouri/web build
 | R1-6 争议 UI | 后端 Dispute 模型 + 资金冻结逻辑已在；缺买家发起与管理员裁决页面 |
 | R1-7 GDPR 补齐 | 隐私页/Cookie 横幅已上线；剩数据导出/删除请求工作流 |
 
+**2026-07-22 批次（R1.5 全部完成）**：
+- **分期付款**：`PaymentMilestone` + `trading/milestone.service.ts`。下单可传 `milestones` 或继承合同 `paymentTerms`；`POST /payments/checkout` 每次只收最早未付一期（返回 `amount` 与 `milestone`）；首期到账即 PAID_ESCROW，尾款未清时发货报 `MILESTONE_UNPAID`；`POST /milestones/:id/mark-paid` 供线下电汇登记。**注意**：checkout 的可付状态由 `PAYABLE_STATES` 控制（分期订单发货前各状态均可付，一次性订单仍限 PLACED）
+- **框架合同**：`TradeContract` + `trading/contract.service.ts`，`POST/GET /contracts`；下单传 `contractCode` 即校验总量上限（含 ±tolerance）并继承付款条款；合同列表含分批履历与剩余量。新增 codeRule `CONTRACT`（CTR-YYYYMMDD-nnnn），**新库需重跑 `prisma/seed`**
+- **CITES 多物种**：`CitesPermitLine`；建证支持 `lines[]`，扣减需带 `speciesCode`（多物种证不指定会报错）；供应商档案页有用量条与临期提醒。历史数据已用 `scripts/migrate-cites-lines.ts` 合并（幂等，VPS 需跑一次）
+- **样品单**：下单传 `sample: true` → `OrderType.SAMPLE`，免 MOQ 但总量 ≤5kg
+
 ## 5.5 已知缺口（2026-07-21 代码级核实，勿轻信旧文档表述）
 
 🚨 **两处「前端文案已承诺、后端功能不存在」**，接手后请优先清理：

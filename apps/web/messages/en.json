@@ -691,7 +691,12 @@
     "viewDetail": "View detail",
     "viewFile": "View file",
     "uploadFile": "Upload",
-    "simulatedPayment": "Demo mode: no Stripe key configured, so this simulates a successful payment. Configure real keys to switch to the card checkout."
+    "simulatedPayment": "Demo mode: no Stripe key configured, so this simulates a successful payment. Configure real keys to switch to the card checkout.",
+    "milestones": "Payment schedule",
+    "blocksShipment": "due before shipping",
+    "markPaid": "Mark received",
+    "sampleOrder": "Sample order",
+    "underContract": "Contract"
   },
   "connect": {
     "title": "Payout account (Stripe Connect)",

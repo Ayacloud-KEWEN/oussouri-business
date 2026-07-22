@@ -6,9 +6,13 @@ import { StateMachineService } from "../../kernel/state-machine/state-machine.se
 import { InventoryService } from "../inventory/inventory.service";
 import { FulfillmentService } from "../fulfillment/fulfillment.service";
 import { pickPriceTier } from "./price-tier.util";
+import { MilestoneService, type MilestoneInput } from "./milestone.service";
+import { ContractService, type PaymentTermTemplate } from "./contract.service";
 import type { JwtPayload } from "../iam/auth.types";
 
 const SYSTEM_ROLE = "SYSTEM";
+/** 样品单总量上限（kg）：行业惯例寄样为小份试吃装（R1.5-4） */
+const SAMPLE_MAX_QTY_KG = 5;
 
 @Injectable()
 export class TradingService {
@@ -18,6 +22,8 @@ export class TradingService {
     private readonly stateMachine: StateMachineService,
     private readonly inventory: InventoryService,
     private readonly fulfillment: FulfillmentService,
+    private readonly milestones: MilestoneService,
+    private readonly contracts: ContractService,
   ) {}
 
   // ---------- 购物车 ----------
@@ -58,7 +64,19 @@ export class TradingService {
 
   // ---------- 下单（按供应商拆单，BR-08-02；价格/汇率/佣金快照，BR-08-01） ----------
 
-  async placeOrders(input: { items: { skuCode: string; qty: number }[]; currency: string }, user: JwtPayload) {
+  async placeOrders(
+    input: {
+      items: { skuCode: string; qty: number }[];
+      currency: string;
+      /** 挂靠框架合同（R1.5-2）：校验总量并继承付款条款 */
+      contractCode?: string;
+      /** 自定义分期条款（R1.5-1）；未给则用合同条款，都没有就一次性全额 */
+      milestones?: MilestoneInput[];
+      /** 样品单（R1.5-4）：免 MOQ，限额小批量 */
+      sample?: boolean;
+    },
+    user: JwtPayload,
+  ) {
     if (!user.orgId) throw new ForbiddenException({ code: "PERM_DENIED", detail: "需要采购商身份" });
     const buyerOrg = await this.prisma.organization.findUniqueOrThrow({ where: { id: user.orgId } });
     if (buyerOrg.status !== "ACTIVE") {
@@ -74,18 +92,42 @@ export class TradingService {
     }
 
     const fxRate = await this.fxToEur(input.currency);
+    MilestoneService.validate(input.milestones);
+
+    // 样品单：免 MOQ 但限量，避免以样品名义走大单绕开条款
+    const isSample = input.sample === true;
+    if (isSample) {
+      const totalQty = input.items.reduce((s, i) => s + i.qty, 0);
+      if (totalQty > SAMPLE_MAX_QTY_KG) {
+        throw new BadRequestException({
+          code: "VALIDATION_FAILED",
+          detail: `样品单总量不得超过 ${SAMPLE_MAX_QTY_KG} kg（本单 ${totalQty} kg），请改下正式订单`,
+        });
+      }
+    }
 
     // 按供应商分组
     const groups = new Map<string, { sku: (typeof skus)[number]; qty: Prisma.Decimal }[]>();
     for (const item of input.items) {
       const sku = skus.find((s) => s.skuCode === item.skuCode)!;
       const qty = new Prisma.Decimal(item.qty);
-      if (qty.lt(sku.moq)) {
+      if (!isSample && qty.lt(sku.moq)) {
         throw new BadRequestException({ code: "VALIDATION_FAILED", detail: `${sku.skuCode} 低于 MOQ ${sku.moq}` });
       }
       const list = groups.get(sku.product.supplierOrgId) ?? [];
       list.push({ sku, qty });
       groups.set(sku.product.supplierOrgId, list);
+    }
+
+    // 框架合同：校验总量上限（含浮动）并取用其付款条款
+    let contract: Awaited<ReturnType<ContractService["assertCapacity"]>> | null = null;
+    if (input.contractCode) {
+      const found = await this.prisma.tradeContract.findFirst({
+        where: { publicCode: input.contractCode, deletedAt: null },
+      });
+      if (!found) throw new NotFoundException({ code: "NOT_FOUND", detail: "合同不存在" });
+      const totalQty = input.items.reduce((s, i) => s.plus(new Prisma.Decimal(i.qty)), new Prisma.Decimal(0));
+      contract = await this.contracts.assertCapacity(found.id, totalQty, user.orgId!);
     }
 
     const orders: { code: string; supplierCode: string; grandTotal: string; currency: string }[] = [];
@@ -115,7 +157,8 @@ export class TradingService {
         const order = await tx.tradeOrder.create({
           data: {
             publicCode: code,
-            orderType: "DIRECT",
+            orderType: isSample ? "SAMPLE" : "DIRECT",
+            contractId: contract?.id,
             buyerOrgId: user.orgId!,
             supplierOrgId,
             currency: input.currency,
@@ -130,6 +173,13 @@ export class TradingService {
           },
         });
         await tx.orderItem.createMany({ data: itemRows.map((r) => ({ ...r, orderId: order.id })) });
+        // 分期条款：显式输入优先，其次继承合同模板（R1.5-1）
+        const terms = input.milestones?.length
+          ? input.milestones
+          : ((contract?.paymentTerms as PaymentTermTemplate[] | null) ?? undefined);
+        if (terms?.length) {
+          await this.milestones.createForOrder(tx, order.id, itemsTotal, input.currency, terms, user.sub);
+        }
         // 预留库存（订单级，支付前 24h TTL）
         for (const { sku, qty } of lines) {
           await this.inventory.reserveInTx(tx, sku.id, qty, "ORDER", order.id, new Date(Date.now() + 24 * 3600_000), user.sub);
@@ -195,8 +245,10 @@ export class TradingService {
     const { emitsEvent } = await this.stateMachine.assertAllowed("ORDER", order.status, toState, roles);
 
     // 发货守卫（M11/M12）：运单已登记 + 单证 7 件套齐备，缺件拒绝
+    // R1.5-1：发货前必付的里程碑未结清同样拦截（真实条款"发货前结清尾款"）
     if (toState === "SHIPPED") {
       await this.fulfillment.assertReadyToShip(order.id);
+      await this.milestones.assertShippable(order.id);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -290,6 +342,15 @@ export class TradingService {
     }
 
     const counterpartyId = isBuyer ? order.supplierOrgId : order.buyerOrgId;
+    const [contract, milestones] = await Promise.all([
+      order.contractId
+        ? this.prisma.tradeContract.findUnique({
+            where: { id: order.contractId },
+            select: { publicCode: true, contractNo: true, totalQtyKg: true, tolerancePct: true, effectiveTo: true, status: true },
+          })
+        : Promise.resolve(null),
+      this.prisma.paymentMilestone.findMany({ where: { orderId: order.id, deletedAt: null }, orderBy: { seq: "asc" } }),
+    ]);
     const [counterparty, payments, declarations, documents, transitions] = await Promise.all([
       this.prisma.organization.findUnique({ where: { id: counterpartyId }, select: { publicCode: true, countryIso2: true } }),
       this.prisma.payment.findMany({
@@ -319,6 +380,12 @@ export class TradingService {
       status: order.status,
       orderType: order.orderType,
       side: isBuyer ? "BUYER" : isSupplier ? "SUPPLIER" : "STAFF",
+      contract,
+      milestones: milestones.map((m) => ({
+        id: m.id, seq: m.seq, label: m.label, triggerNote: m.triggerNote,
+        percentage: m.percentage, amount: m.amount, currency: m.currency,
+        blocksShipment: m.blocksShipment, status: m.status, dueAt: m.dueAt, paidAt: m.paidAt,
+      })),
       counterpartyCode: counterparty?.publicCode ?? "UNKNOWN",
       counterpartyCountry: counterparty?.countryIso2 ?? null,
       currency: order.currency,

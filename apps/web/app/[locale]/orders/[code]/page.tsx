@@ -12,8 +12,15 @@ interface Payment { method: string; amount: string; currency: string; status: st
 interface Declaration { direction: string; declarationNo: string | null; brokerName: string | null; status: string; declaredAt: string | null; clearedAt: string | null; inspectionResult: string | null }
 interface DocRow { id: string; docType: string; docNo: string | null; issuer: string | null; issueDate: string | null; expiryDate: string | null; status: string; hasFile: boolean }
 interface TimelineRow { action: string; at: string; actorRole: string | null; to: string | null }
+interface Milestone {
+  id: string; seq: number; label: string; triggerNote: string | null;
+  percentage: string | null; amount: string; currency: string;
+  blocksShipment: boolean; status: string; dueAt: string | null; paidAt: string | null;
+}
+interface ContractRef { publicCode: string; contractNo: string; totalQtyKg: string | null; tolerancePct: string; effectiveTo: string | null; status: string }
 interface OrderDetail {
   code: string; status: string; orderType: string; side: string;
+  contract: ContractRef | null; milestones: Milestone[];
   counterpartyCode: string; counterpartyCountry: string | null;
   currency: string; itemsTotal: string; grandTotal: string; commissionAmount?: string;
   incoterms: string | null; notes: string | null;
@@ -123,6 +130,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
         <span className="badge">{order.status}</span>
         <span className="badge">{isBuyer ? t.supplierSide : t.buyerSide}: {order.counterpartyCode}</span>
         {order.incoterms && <span className="badge">{order.incoterms}</span>}
+        {order.orderType === "SAMPLE" && <span className="badge" style={{ color: "var(--color-accent)" }}>{t.sampleOrder}</span>}
+        {order.contract && (
+          <span className="badge" title={order.contract.publicCode}>
+            {t.underContract}: {order.contract.contractNo}
+          </span>
+        )}
         <span className="ml-auto text-lg font-semibold">{order.currency} {order.grandTotal}</span>
       </div>
       {message && <p className="text-sm" style={{ color: "var(--color-muted)" }}>{message}</p>}
@@ -180,8 +193,47 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
               </tbody>
             </table>
           )}
+          {/* 分期付款条款（R1.5-1）：真实合同的"定金 + 尾款"结构 */}
+          {order.milestones.length > 0 && (
+            <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
+              <p className="text-xs font-medium">{t.milestones}</p>
+              {order.milestones.map((m) => (
+                <div key={m.id} className="flex flex-wrap items-center gap-2 text-xs">
+                  <span
+                    className="flex h-4 w-4 items-center justify-center rounded-full text-[9px]"
+                    style={m.status === "PAID"
+                      ? { background: "var(--color-accent)", color: "var(--color-primary-foreground)" }
+                      : { border: "1px solid var(--color-border)", color: "var(--color-muted)" }}
+                    aria-hidden
+                  >
+                    {m.status === "PAID" ? "✓" : m.seq}
+                  </span>
+                  <span className={m.status === "PAID" ? "" : "font-medium"}>{m.label}</span>
+                  <span style={{ color: "var(--color-muted)" }}>{m.currency} {m.amount}</span>
+                  {m.blocksShipment && m.status !== "PAID" && (
+                    <span className="badge" style={{ color: "var(--color-warning)" }}>{t.blocksShipment}</span>
+                  )}
+                  {m.triggerNote && <span style={{ color: "var(--color-muted)" }}>· {m.triggerNote}</span>}
+                  {/* 线下电汇到账登记（供应商/平台财务） */}
+                  {!isBuyer && m.status !== "PAID" && (
+                    <button
+                      className="ml-auto text-xs"
+                      style={{ color: "var(--color-accent)" }}
+                      onClick={() => act(() => api("POST", `/milestones/${m.id}/mark-paid`, {}))}
+                    >
+                      {t.markPaid}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <p className="text-xs" style={{ color: "var(--color-muted)" }}>💡 {t.escrowNote}</p>
-          {isBuyer && order.status === "PLACED" && (
+          {/* 分期订单在发货前各状态都可继续付下一期 */}
+          {isBuyer && order.milestones.some((m) => m.status !== "PAID") && ["PLACED", "PAID_ESCROW", "CONFIRMED", "PREPARING"].includes(order.status) && (
+            <StripeCheckout orderCode={order.code} dict={dict} onPaid={() => void refresh()} />
+          )}
+          {isBuyer && order.milestones.length === 0 && order.status === "PLACED" && (
             <StripeCheckout orderCode={order.code} dict={dict} onPaid={() => void refresh()} />
           )}
           {isBuyer && ["SHIPPED", "CUSTOMS_CLEARED", "IN_CUSTOMS"].includes(order.status) && (

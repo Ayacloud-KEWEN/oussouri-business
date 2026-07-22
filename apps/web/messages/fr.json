@@ -691,7 +691,12 @@
     "viewDetail": "Voir le détail",
     "viewFile": "Voir le fichier",
     "uploadFile": "Téléverser",
-    "simulatedPayment": "Mode démo : aucune clé Stripe configurée, le paiement est simulé. Configurez les clés réelles pour activer le paiement par carte."
+    "simulatedPayment": "Mode démo : aucune clé Stripe configurée, le paiement est simulé. Configurez les clés réelles pour activer le paiement par carte.",
+    "milestones": "Échéancier de paiement",
+    "blocksShipment": "dû avant expédition",
+    "markPaid": "Marquer reçu",
+    "sampleOrder": "Échantillon",
+    "underContract": "Contrat-cadre"
   },
   "connect": {
     "title": "Compte de versement (Stripe Connect)",
