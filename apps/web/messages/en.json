@@ -506,7 +506,111 @@
         "a": "Interface in Chinese, English and French; settlement primarily in EUR with the FX rate locked at order time."
       }
     ],
-    "cta": "Register and start trading"
+    "cta": "Register and start trading",
+    "quickTitle": "I want to… (jump straight there)",
+    "quick": [
+      {
+        "t": "Buy caviar",
+        "d": "Browse listings with traceability, nutrition and wholesale prices",
+        "href": "/market"
+      },
+      {
+        "t": "Post a sourcing request for quotes",
+        "d": "Use an RFQ for volume or custom specs",
+        "href": "/buyer"
+      },
+      {
+        "t": "Sell caviar (list products)",
+        "d": "Create products, set tiered prices, load stock, ship orders",
+        "href": "/supplier"
+      },
+      {
+        "t": "Understand the export process",
+        "d": "A real completed deal explained in ten steps",
+        "href": "/help/academy"
+      }
+    ],
+    "roleHintTitle": "First, which side are you on?",
+    "roleHintBuyer": "European buyer (importer / wholesaler / restaurant) → see “I am a buyer” below",
+    "roleHintSupplier": "Chinese farm or processor → see “I am a supplier” below",
+    "loginTip": "Once logged in, a Getting started progress bar sits at the top of your workspace and always shows the next action.",
+    "glossaryTitle": "Glossary",
+    "glossary": [
+      {
+        "t": "Platform code (SP-xxx / BY-xxx)",
+        "d": "Your identity on the platform. Counterparties always appear as codes; real company names are held by the platform as intermediary."
+      },
+      {
+        "t": "Escrow",
+        "d": "The buyer's payment sits in a platform account and is released to the supplier only after the buyer confirms delivery (less commission). It protects both sides."
+      },
+      {
+        "t": "RFQ (request for quote)",
+        "d": "A buyer posts requirements (species, volume, target price, deadline) and several suppliers bid. Best for volume or custom specs."
+      },
+      {
+        "t": "Tiered wholesale price",
+        "d": "Unit price by volume band — larger orders, lower price. Visible to logged-in members only; these are B2B prices, not public retail."
+      },
+      {
+        "t": "MOQ",
+        "d": "Minimum order quantity for that SKU; smaller orders are rejected."
+      },
+      {
+        "t": "SKU",
+        "d": "A specific format of a product (50 g tin, 500 g gift tin…). Price and stock attach to the SKU, not the product."
+      },
+      {
+        "t": "Traceability chain",
+        "d": "Farm → source batch → processing batch with QC verdict. Farm names are encrypted: buyers see the quality data, not the identity."
+      },
+      {
+        "t": "Redacted copy (with tracking code)",
+        "d": "Originals stay archived with the platform; counterparties receive copies with identity fields masked, each carrying a unique tracking code."
+      },
+      {
+        "t": "CITES permit",
+        "d": "The endangered-species trade permit. All sturgeon are listed: exporting and importing country each need one, one per batch, valid about 6 months."
+      },
+      {
+        "t": "HS code",
+        "d": "Customs commodity code — 1604310000 for caviar. Declarations and duties follow it."
+      },
+      {
+        "t": "Incoterms (CIF/FOB/EXW)",
+        "d": "Trade terms defining who pays freight and insurance and who carries risk. CIF = seller covers freight and insurance to the destination port."
+      },
+      {
+        "t": "Document completeness check",
+        "d": "Before shipping, the platform verifies every required document is registered. Missing pieces block the shipment, preventing costly detention at the destination port."
+      }
+    ],
+    "faqExtra": [
+      {
+        "q": "I just signed up — what is my first move?",
+        "a": "Buyers: browse the marketplace and fill your cart, or post an RFQ from the buyer workspace. Suppliers: create a product, add SKUs and tiered prices, submit for review, then load an inventory lot. The Getting started panel at the top of your workspace tracks progress and links to the next action."
+      },
+      {
+        "q": "Why can't I see prices?",
+        "a": "Wholesale prices are shown to logged-in, approved members only. If the prompt persists after signing in, refresh the page or log in again."
+      },
+      {
+        "q": "Who receives my payment? Is it safe?",
+        "a": "The platform escrow account, not the supplier. Funds are released only after you confirm delivery. If something is wrong, open a dispute within the window — the platform freezes the funds and adjudicates."
+      },
+      {
+        "q": "Can I contact the other company directly?",
+        "a": "No, and you don't need to. Messaging is in-platform, documents are forwarded redacted, and calls are bridged by the platform. Phone numbers, emails and messenger IDs are blocked automatically, and off-platform deals lose escrow protection."
+      },
+      {
+        "q": "How soon do listings go live?",
+        "a": "After submission and platform verification, usually within 24 hours. Names and descriptions are machine-translated into English and French and shown to European buyers after human review."
+      },
+      {
+        "q": "Who arranges the CITES permits?",
+        "a": "The Chinese supplier applies for the export permit; the European buyer applies to their national CITES authority for the import permit (in France, DRIEAT — allow 2–6 weeks). Both are required for lawful clearance, so plan backwards from the shipping date."
+      }
+    ]
   },
   "common": {
     "status": "Status",
@@ -516,5 +620,40 @@
     "error": "Something went wrong",
     "success": "Done",
     "save": "Save"
+  },
+  "guide": {
+    "title": "Getting started · what to do next",
+    "allDone": "all done 🎉",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "youAreHere": "you are here",
+    "buyer": {
+      "s1": "Account activated",
+      "s1d": "Your company passed platform review, so you can start sourcing. Your real identity stays with the platform — suppliers only ever see your platform code.",
+      "s2": "Pick products or post a sourcing request",
+      "s2d": "Browse the marketplace by species and grade, open a product for its traceability file, nutrition data and tiered wholesale prices, then add it to your cart. For volume or custom specs, post an RFQ below and let several suppliers bid.",
+      "s2cta": "Browse the marketplace",
+      "s3": "Place the order",
+      "s3d": "Confirm quantities in the cart and place the order. It is split per supplier automatically, and the agreed price and specs are frozen into the order snapshot.",
+      "s3cta": "Go pick products",
+      "s4": "Pay into platform escrow",
+      "s4d": "Hit Pay on the order below. Funds go to the platform escrow account, not to the supplier — nothing is released until you confirm delivery.",
+      "s5": "Track the shipment and confirm delivery",
+      "s5d": "The order page shows customs status, flight legs and the cold-chain temperature log. Confirm delivery to release escrow, or open a dispute within the window and the platform freezes the funds and adjudicates."
+    },
+    "supplier": {
+      "s1": "Account activated",
+      "s1d": "Your company passed review. Plant name and address are stored encrypted — buyers only ever see your platform code.",
+      "s2": "Create a product",
+      "s2d": "Use the New product form below (name, category, HS code), then add SKUs (tin size, net weight, MOQ) and set tiered wholesale prices.",
+      "s3": "Submit for review and go live",
+      "s3d": "Submit the finished product; once the platform verifies it, it appears publicly in the marketplace (machine-translated to EN/FR, shown after human review).",
+      "s4": "Load inventory lots",
+      "s4d": "Create a lot with the real production lot number, production and expiry dates. Link it to a processing batch to complete the traceability chain. Buyer orders reserve against these lots.",
+      "s5": "Accept orders and prepare goods",
+      "s5d": "Once a buyer's funds are in escrow, the order appears below — confirm it and start preparing. You can also quote buyers' open RFQs in the section below.",
+      "s6": "Register documents and ship",
+      "s6d": "Register the shipment (legs, AWB) and every document (invoice, packing list, CITES, health and veterinary certificates). Missing documents block shipping; once complete, hit Ship. Escrow settles to you after the buyer confirms delivery."
+    }
   }
 }

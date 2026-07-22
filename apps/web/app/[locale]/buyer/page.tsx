@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
+import { GettingStarted } from "@/components/getting-started";
 
 interface CartItem { skuCode: string; packSpec: string; qty: string }
 interface RfqQuote { id: string; supplierCode?: string; unitPrice: string; leadTimeDays?: number; validUntil: string; status: string }
@@ -56,10 +57,24 @@ export default function BuyerPage({ params }: { params: Promise<{ locale: string
       await api("POST", "/webhooks/stripe", { type: "payment_intent.succeeded", data: { object: { id: checkout.intentId } } });
     });
 
+  // 新手引导：按真实数据判定进度（下一步该点哪里一目了然）
+  const g = dict.guide.buyer;
+  const hasSelection = cart.length > 0 || rfqs.length > 0 || orders.length > 0;
+  const paidOrders = orders.filter((o) => !["DRAFT", "PLACED", "CANCELLED"].includes(o.status));
+  const guideSteps = [
+    { title: g.s1, hint: g.s1d, done: true },
+    { title: g.s2, hint: g.s2d, done: hasSelection, href: `/${locale}/market`, cta: g.s2cta },
+    { title: g.s3, hint: g.s3d, done: orders.length > 0, href: `/${locale}/market`, cta: g.s3cta },
+    { title: g.s4, hint: g.s4d, done: paidOrders.length > 0 },
+    { title: g.s5, hint: g.s5d, done: orders.some((o) => ["DELIVERED", "COMPLETED"].includes(o.status)) },
+  ];
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">{dict.buyer.title}</h1>
       {message && <p className="text-sm" style={{ color: "var(--color-muted)" }}>{message}</p>}
+
+      <GettingStarted dict={dict} steps={guideSteps} />
 
       <section className="space-y-3">
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.buyer.cart}</h2>

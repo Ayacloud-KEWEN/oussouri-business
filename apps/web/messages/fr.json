@@ -506,7 +506,111 @@
         "a": "Interface en chinois, anglais et français ; règlement principalement en EUR, taux de change figé à la commande."
       }
     ],
-    "cta": "S'inscrire et commencer"
+    "cta": "S'inscrire et commencer",
+    "quickTitle": "Je souhaite… (accès direct)",
+    "quick": [
+      {
+        "t": "Acheter du caviar",
+        "d": "Parcourir l'offre : traçabilité, nutrition et prix de gros",
+        "href": "/market"
+      },
+      {
+        "t": "Publier un appel d'offres",
+        "d": "RFQ pour les volumes ou formats spécifiques",
+        "href": "/buyer"
+      },
+      {
+        "t": "Vendre du caviar (publier une offre)",
+        "d": "Créer produits, prix dégressifs, stock et expéditions",
+        "href": "/supplier"
+      },
+      {
+        "t": "Comprendre le processus export",
+        "d": "Une transaction réelle expliquée en dix étapes",
+        "href": "/help/academy"
+      }
+    ],
+    "roleHintTitle": "D'abord, de quel côté êtes-vous ?",
+    "roleHintBuyer": "Acheteur européen (importateur / grossiste / restaurant) → voir « Je suis acheteur »",
+    "roleHintSupplier": "Ferme ou usine en Chine → voir « Je suis fournisseur »",
+    "loginTip": "Une fois connecté, la barre « Prise en main » en haut de votre espace indique toujours l'étape suivante.",
+    "glossaryTitle": "Glossaire",
+    "glossary": [
+      {
+        "t": "Code plateforme (SP-xxx / BY-xxx)",
+        "d": "Votre identifiant sur la plateforme. La contrepartie n'apparaît que par son code ; les raisons sociales restent chez la plateforme."
+      },
+      {
+        "t": "Séquestre",
+        "d": "Le paiement de l'acheteur est conservé par la plateforme et versé au fournisseur seulement après confirmation de réception (commission déduite). Protection des deux parties."
+      },
+      {
+        "t": "RFQ (appel d'offres)",
+        "d": "L'acheteur publie son besoin (espèce, volume, prix cible, échéance) ; plusieurs fournisseurs répondent. Idéal pour les volumes ou formats spécifiques."
+      },
+      {
+        "t": "Prix de gros dégressif",
+        "d": "Prix unitaire par palier de volume. Visible uniquement pour les membres connectés : prix B2B, non publics."
+      },
+      {
+        "t": "MOQ",
+        "d": "Quantité minimale de commande pour ce SKU."
+      },
+      {
+        "t": "SKU",
+        "d": "Format précis d'un produit (boîte 50 g, coffret 500 g…). Prix et stock sont rattachés au SKU."
+      },
+      {
+        "t": "Chaîne de traçabilité",
+        "d": "Ferme → lot source → lot de transformation avec verdict qualité. Les noms de ferme sont chiffrés : l'acheteur voit la qualité, pas l'identité."
+      },
+      {
+        "t": "Copie caviardée (avec code de suivi)",
+        "d": "Les originaux restent archivés par la plateforme ; la contrepartie reçoit une copie masquée portant un code de suivi unique."
+      },
+      {
+        "t": "Permis CITES",
+        "d": "Permis du commerce des espèces menacées. Tous les esturgeons y figurent : un permis côté export, un côté import, un par lot, validité d'environ 6 mois."
+      },
+      {
+        "t": "Code SH",
+        "d": "Code douanier de la marchandise — 1604310000 pour le caviar. Déclarations et droits en dépendent."
+      },
+      {
+        "t": "Incoterms (CIF/FOB/EXW)",
+        "d": "Termes définissant qui paie fret et assurance et qui porte le risque. CIF = le vendeur couvre fret et assurance jusqu'au port de destination."
+      },
+      {
+        "t": "Contrôle de complétude documentaire",
+        "d": "Avant expédition, la plateforme vérifie que chaque document requis est enregistré. Une pièce manquante bloque l'envoi et évite une immobilisation coûteuse en douane."
+      }
+    ],
+    "faqExtra": [
+      {
+        "q": "Je viens de m'inscrire, par où commencer ?",
+        "a": "Acheteurs : parcourez le marché et remplissez votre panier, ou publiez un RFQ depuis votre espace. Fournisseurs : créez un produit, ajoutez SKU et prix, soumettez à validation, puis saisissez un lot de stock. Le panneau « Prise en main » suit votre progression et pointe l'action suivante."
+      },
+      {
+        "q": "Pourquoi les prix ne s'affichent-ils pas ?",
+        "a": "Les prix de gros sont réservés aux membres connectés et validés. Si le message persiste après connexion, actualisez la page ou reconnectez-vous."
+      },
+      {
+        "q": "À qui va mon paiement ? Est-ce sûr ?",
+        "a": "Au compte séquestre de la plateforme, pas au fournisseur. Les fonds ne sont libérés qu'après votre confirmation de réception. En cas de problème, ouvrez un litige : la plateforme gèle les fonds et arbitre."
+      },
+      {
+        "q": "Puis-je contacter directement l'autre société ?",
+        "a": "Non, et ce n'est pas nécessaire. Messagerie interne, documents transmis caviardés, appels relayés par la plateforme. Numéros, e-mails et messageries sont bloqués automatiquement ; hors plateforme, plus de protection séquestre."
+      },
+      {
+        "q": "Sous quel délai une offre est-elle visible ?",
+        "a": "Après soumission et vérification, généralement sous 24 heures. Noms et descriptions sont traduits automatiquement en anglais et en français, puis relus avant publication."
+      },
+      {
+        "q": "Qui obtient les permis CITES ?",
+        "a": "Le fournisseur chinois demande le permis d'export ; l'acheteur européen demande le permis d'import à son autorité CITES (en France, la DRIEAT — 2 à 6 semaines). Les deux sont nécessaires : planifiez à rebours depuis la date d'expédition."
+      }
+    ]
   },
   "common": {
     "status": "Statut",
@@ -516,5 +620,40 @@
     "error": "Une erreur est survenue",
     "success": "Terminé",
     "save": "Enregistrer"
+  },
+  "guide": {
+    "title": "Prise en main · prochaine étape",
+    "allDone": "terminé 🎉",
+    "collapse": "Réduire",
+    "expand": "Afficher",
+    "youAreHere": "étape en cours",
+    "buyer": {
+      "s1": "Compte activé",
+      "s1d": "Votre société est validée : vous pouvez sourcer. Votre identité réelle reste chez la plateforme — les fournisseurs ne voient que votre code.",
+      "s2": "Choisir des produits ou publier un appel d'offres",
+      "s2d": "Parcourez le marché par espèce et qualité, ouvrez une fiche produit pour la traçabilité, les valeurs nutritionnelles et les prix de gros dégressifs, puis ajoutez au panier. Pour un volume ou un format spécifique, publiez un RFQ ci-dessous et laissez plusieurs fournisseurs répondre.",
+      "s2cta": "Parcourir le marché",
+      "s3": "Passer la commande",
+      "s3d": "Confirmez les quantités dans le panier et validez. La commande est répartie par fournisseur, prix et spécifications figés dans l'instantané de commande.",
+      "s3cta": "Choisir des produits",
+      "s4": "Payer sous séquestre",
+      "s4d": "Cliquez sur Payer sur la commande ci-dessous. Les fonds vont au séquestre de la plateforme, pas au fournisseur : rien n'est libéré avant votre confirmation de réception.",
+      "s5": "Suivre et confirmer la réception",
+      "s5d": "La page commande affiche le statut douanier, les segments de vol et les relevés de température. Confirmez la réception pour libérer le séquestre, ou ouvrez un litige dans le délai imparti : la plateforme gèle les fonds et arbitre."
+    },
+    "supplier": {
+      "s1": "Compte activé",
+      "s1d": "Votre société est validée. Nom d'usine et adresse sont chiffrés — les acheteurs ne voient que votre code plateforme.",
+      "s2": "Créer un produit",
+      "s2d": "Utilisez le formulaire ci-dessous (nom, catégorie, code SH), puis ajoutez des SKU (format, poids net, MOQ) et vos prix de gros dégressifs.",
+      "s3": "Soumettre et publier",
+      "s3d": "Soumettez le produit ; après vérification, il apparaît publiquement sur le marché (traduction automatique EN/FR, publiée après relecture).",
+      "s4": "Saisir les lots de stock",
+      "s4d": "Créez un lot avec le vrai numéro de production, les dates de fabrication et de péremption. Reliez-le à un lot de transformation pour compléter la traçabilité. Les commandes réservent sur ces lots.",
+      "s5": "Accepter les commandes et préparer",
+      "s5d": "Dès que les fonds de l'acheteur sont sous séquestre, la commande apparaît ci-dessous : confirmez-la et préparez la marchandise. Vous pouvez aussi répondre aux RFQ ouverts plus bas.",
+      "s6": "Enregistrer les documents et expédier",
+      "s6d": "Enregistrez l'expédition (segments, LTA) et chaque document (facture, colisage, CITES, certificats sanitaire et vétérinaire). Un document manquant bloque l'expédition ; une fois complet, cliquez sur Expédier. Le séquestre vous est réglé après confirmation de réception."
+    }
   }
 }

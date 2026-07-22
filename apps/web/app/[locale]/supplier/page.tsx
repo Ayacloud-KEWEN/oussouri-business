@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
+import { GettingStarted } from "@/components/getting-started";
 
 interface SupplierProduct { code: string; name: string; description: string | null; status: string; skuCount: number }
 interface Lot { skuCode: string; lotNo: string; qtyOnHand: string; qtyReserved: string; expiresAt: string; status: string }
@@ -210,10 +211,24 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
     }
   };
 
+  // 新手引导：按真实数据判定进度（下一步该点哪里一目了然）
+  const g = dict.guide.supplier;
+  const activeProducts = products.filter((p) => p.status === "ACTIVE");
+  const guideSteps = [
+    { title: g.s1, hint: g.s1d, done: true },
+    { title: g.s2, hint: g.s2d, done: products.length > 0 },
+    { title: g.s3, hint: g.s3d, done: activeProducts.length > 0 },
+    { title: g.s4, hint: g.s4d, done: lots.length > 0 },
+    { title: g.s5, hint: g.s5d, done: orders.length > 0 },
+    { title: g.s6, hint: g.s6d, done: orders.some((o) => ["SHIPPED", "IN_CUSTOMS", "CUSTOMS_CLEARED", "DELIVERED", "COMPLETED"].includes(o.status)) },
+  ];
+
   return (
     <div className="space-y-10">
       <h1 className="text-2xl font-semibold">{dict.supplier.title}</h1>
       {message && <p className="text-sm" style={{ color: "var(--color-muted)" }}>{message}</p>}
+
+      <GettingStarted dict={dict} steps={guideSteps} />
 
       <section className="space-y-3">
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.supplier.products}</h2>
