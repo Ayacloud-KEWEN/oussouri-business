@@ -7,6 +7,7 @@ import { PrismaClient } from "@prisma/client";
 import { createCipheriv, createHmac, randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { finishSmoke } from "./lib/test-data";
 
 const BASE = "http://localhost:3001/v1";
 const prisma = new PrismaClient();
@@ -171,6 +172,8 @@ async function main(): Promise<void> {
   const buyerOrders = await api("GET", "/buyer/orders", undefined, buyerToken);
   const paid = buyerOrders.json?.find?.((o: any) => o.code === brokerOrder.json.orderCode);
   check("居间单进入 PAID_ESCROW", paid?.status === "PAID_ESCROW", paid?.status);
+
+  await finishSmoke(prisma, run, failures);
 
   console.log(failures === 0 ? "\n✅ P2 冒烟全部通过" : `\n❌ ${failures} 项失败`);
   process.exitCode = failures === 0 ? 0 : 1;

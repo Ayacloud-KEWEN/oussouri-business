@@ -44,6 +44,7 @@ pnpm --filter @oussouri/api typecheck ; pnpm --filter @oussouri/web typecheck
 pnpm --filter @oussouri/api test          # 44 单测
 # 起 API 后按改动范围重跑冒烟（apps/api/scripts/）：
 # smoke.ts(29) smoke-p2.ts(13) smoke-fulfillment.ts(17) smoke-p2x.ts(17) smoke-compliance.ts(34)
+# 冒烟全绿会自动回收本次数据；有失败项则保留现场供排查，事后用 scripts/clean-test-data.ts 清
 pnpm --filter @oussouri/web build
 # 涉静态资源/Docker 的改动：构建生产镜像 docker run 验证（standalone ≠ dev server）
 ```
@@ -73,12 +74,13 @@ pnpm --filter @oussouri/web build
 | 批次 | 关键落点 |
 |---|---|
 | R2（07-11/12） | 忘记密码 + httpOnly cookie 会话 + TOTP 2FA｜WS 通知｜全文搜索｜DeepSeek 机翻管道｜可见性策略拦截器｜后台补齐 |
-| 法国伙伴档案（07-22） | `seed-french-partners.ts`（源 `HZB/法国经销商.docx`，幂等）：**只建主体档案不建交易** —— 补全既有 JINGLIN 买家的 VAT/RCS/注册地址，新建 WELLHOPE / ZHOU LIHANG / CHEN STEINKERQUE / 客户001 四份档案（状态 `INACTIVE`，不占 PENDING 入驻队列）。四笔历史零售单与发票只写进 `riskNotes`——那是**经销商下游业务**，平台 TradeOrder 的佣金/托管/报关/CITES 全不适用，硬导会污染 GMV 统计。**两个 IBAN 刻意不入库**（平台收款走 Stripe Connect，无银行账号字段） |
+| 法国伙伴档案（07-22） | `seed-french-partners.ts`（源 `HZB/法国经销商.docx`，幂等）：**只建主体档案不建交易**；找 JINGLIN 真身**按演示账号 `buyer-a@demo.oussouri` 的成员关系**定位，不能按 createdAt 取最早（07-23 实测最早的那个是 smoke 影子副本，一度补错了主体） —— 补全既有 JINGLIN 买家的 VAT/RCS/注册地址，新建 WELLHOPE / ZHOU LIHANG / CHEN STEINKERQUE / 客户001 四份档案（状态 `INACTIVE`，不占 PENDING 入驻队列）。四笔历史零售单与发票只写进 `riskNotes`——那是**经销商下游业务**，平台 TradeOrder 的佣金/托管/报关/CITES 全不适用，硬导会污染 GMV 统计。**两个 IBAN 刻意不入库**（平台收款走 Stripe Connect，无银行账号字段） |
 | 真实数据（07-15/20/21） | 三家真实供应商 seed（`seed-hzb-case` / `seed-tuopai-supplier` / `seed-liangmei-supplier`，均幂等）｜`Product.attributes` 承载营养/工艺/品鉴｜外贸学院 `/help/academy`（内容在 `content/academy.ts`）｜首页数据达阈值切实时（`STATS_LIVE_THRESHOLD`）+ 洞察后台可配 |
 | 上手引导（07-21） | `components/getting-started.tsx` 按真实数据判进度；文案在 `messages/*.json` 的 `guide`/`help` 段，改措辞不必动代码 |
 | 履约可视化（07-21） | `GET /orders/:code` 聚合 + `/[locale]/orders/[code]` 页（单证齐备度/双边报关/航段/冷链 SVG/时间线）｜`StoragePort`（本地+S3 手写 SigV4）｜单证原件私有通道（买家取不到原件，payload 只给 `hasFile`）｜Stripe Elements + Connect |
 | R1.5 真实贸易（07-22） | `PaymentMilestone` 分期（checkout 每次只收最早未付一期，`PAYABLE_STATES` 控制可付状态）｜`TradeContract` 框架合同（总量上限含 ±tolerance，条款模板下发）｜`CitesPermitLine` 一证多物种（扣减须带 `speciesCode`）｜`OrderType.SAMPLE`（免 MOQ，≤5kg） |
 | A 组（07-22） | `dispute.service.ts` 争议全流程（三种裁决的资金分配见代码注释）｜`smtp.adapter.ts` 零依赖手写 SMTP |
+| 工程卫生（07-23） | **镜像瘦身** 1.36GB→755MB：依赖只装 api 分支（不再顺带装 web 那套 Next/React）+ `pnpm deploy --prod` 产自包含目录；`tsx` 移入 dependencies 以保住容器内跑 seed 脚本的能力。**顺带堵了个泄露**：`apps/api/uploads` 22MB 曾被烤进生产镜像（单证原件 + HZB 合同 + GDPR 导出包），已加进 `.dockerignore` 并用 package.json `files` 白名单双重兜底 ｜ **测试数据治理**：`scripts/clean-test-data.ts`（默认预览，`--yes` 才删）+ 五套 smoke 收尾自动回收；`smoke.ts` 过去直接借用真实公司名，每跑一次就多一对与华芝宝/JINGLIN 同名的影子主体（本地积到 88 家主体），现已改为带 run 时间戳 |
 | B 组合规（07-22） | 新增 `modules/compliance/`：`cert-expiry.service.ts` 每日 03:00 扫三类证照（60/30/7 分档 + 过期置 EXPIRED，用 `Notification.payload.dedupeKey` 去重保幂等）｜`gdpr.service.ts` DSR 工作流（EXPORT 打包进私有存储凭一次性令牌 72h 取；DELETE 是**匿名化**不是物理删，交易/账本/审计按 Art.17(3) 保留）｜`fulfillment/document-redactor.ts` 像素级打码（PDF→pdf-lib 黑块+水印，位图→sharp；坐标**左上角原点**）。冒烟 `scripts/smoke-compliance.ts`（34 项） |
 
 > **法国伙伴档案的两个待补口**（运营侧补录，不是代码欠账）：客户 001 的公司全称至今只有「客户编码 001」；WELLHOPE 的法定代表人与成立日期空缺。三个下游零售产品（1000g / Hybrid 30g / esturgeon 30g）若要上架，走正常供应商产品流程由 codegen 发编码，**不要用文档建议的 `P-CAV-*` 命名**（平台编码规则是 `PRD-{seq:6}`）。

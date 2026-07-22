@@ -244,12 +244,37 @@ async function upsertArchiveOrg(spec: ArchiveOrg): Promise<{ code: string; creat
   return { code: org.publicCode, created: true };
 }
 
-/** JINGLIN 已是平台买家主体：只补法定信息与沿革，绝不新建第二个 */
-async function enrichJinglin(): Promise<string> {
-  const org = await prisma.organization.findFirst({
+/**
+ * 定位真正的 JINGLIN 买家主体。
+ *
+ * 不能按 createdAt 取最早 —— 早期 smoke.ts 直接借用了真实公司名，库里躺着一堆同名影子主体，
+ * 最早的那个往往是 smoke 造的（本地实测：最早的 BY-000002 是影子，真身是 BY-000055）。
+ * 真身的判据是挂着 seed-hzb-case 用的固定演示账号 buyer-a@demo.oussouri。
+ */
+async function findRealJinglin() {
+  const candidates = await prisma.organization.findMany({
     where: { legalNameBidx: bidx(JINGLIN_NAME), deletedAt: null },
     orderBy: { createdAt: "asc" },
   });
+  if (candidates.length === 0) return null;
+
+  const demoBuyer = await prisma.user.findFirst({ where: { emailBidx: bidx("buyer-a@demo.oussouri") } });
+  if (demoBuyer) {
+    const membership = await prisma.membership.findFirst({
+      where: { userId: demoBuyer.id, orgId: { in: candidates.map((c) => c.id) }, deletedAt: null },
+    });
+    const real = candidates.find((c) => c.id === membership?.orgId);
+    if (real) return real;
+  }
+  if (candidates.length > 1) {
+    console.log(`  ⚠ 库中有 ${candidates.length} 个同名 JINGLIN 且都无演示账号成员，回退取最早的一个；建议先跑 clean-test-data.ts`);
+  }
+  return candidates[0]!;
+}
+
+/** JINGLIN 已是平台买家主体：只补法定信息与沿革，绝不新建第二个 */
+async function enrichJinglin(): Promise<string> {
+  const org = await findRealJinglin();
   if (!org) {
     console.log("  ⚠ 未找到既有 SAS JINGLIN PARIS 主体（本库可能未跑过 seed-hzb-case），跳过补全");
     return "(未找到)";

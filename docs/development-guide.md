@@ -190,4 +190,10 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 
 ### R4 工程债
 
-并发预留测试（行锁 + CHECK 验证）｜账本借贷平衡不变量测试｜Playwright 浏览器 E2E｜恢复 CI（工作流在 git 历史 733e451 前）｜API 镜像瘦身（pnpm deploy，1.5GB → 数百 MB）｜Redis 分布式限流｜覆盖率门禁（核心域 ≥85%，Step 2 NFR）
+并发预留测试（行锁 + CHECK 验证）｜账本借贷平衡不变量测试｜Playwright 浏览器 E2E｜恢复 CI（工作流在 git 历史 733e451 前）｜Redis 分布式限流｜覆盖率门禁（核心域 ≥85%，Step 2 NFR）
+
+> ✅ 2026-07-23 已完成：**API 镜像瘦身** 1.36GB → 755MB。做法见 `apps/api/Dockerfile` 注释。
+> 剩下的 387MB 里 Prisma 一家占 240MB：`@prisma/client` 98MB 是运行时刚需；`prisma` CLI + engines + effect + typescript 约 143MB 只为「容器启动时自动跑 migration」这一条。
+> 若哪天要压到 600MB 以下，唯一干净的办法是把 migration 挪到独立的一次性容器 —— 那会改掉「`up -d` 就自动迁移」的部署语义，**不要靠删 .pnpm 里的引擎二进制来省这几十 MB**（三份 16.7MB query engine 看着冗余，删了半年后没人知道 migration 为什么挂）。
+>
+> **测试数据治理**（同日）：`scripts/clean-test-data.ts` 按「组织名匹配 smoke 命名模式**且以 13 位时间戳结尾**」判定，真实主体与演示账号靠 `PROTECTED_EMAILS` 成员反查保护；删除按外键从叶到根、单事务，漏表会整体回滚而非留下半清理的库。五套 smoke 全绿时自动回收本批数据。

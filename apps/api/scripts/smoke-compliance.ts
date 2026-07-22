@@ -12,6 +12,7 @@ import { createCipheriv, createHmac, randomBytes, scryptSync } from "node:crypto
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import sharp from "sharp";
+import { finishSmoke } from "./lib/test-data";
 
 const BASE = "http://localhost:3001/v1";
 const prisma = new PrismaClient();
@@ -175,6 +176,8 @@ async function main(): Promise<void> {
   // 删除权：用一个独立的、无组织在途订单的账号
   const gonerEmail = `cgone${run}@test.local`;
   await ensureUser(gonerEmail, ["GUEST"], "To Be Erased", "Goner2026!!");
+  // 先记下 id：走完匿名化后邮箱盲索引会被换掉，届时只能按 id 回收这个游离账号
+  const gonerId = (await prisma.user.findFirstOrThrow({ where: { emailBidx: bidx(gonerEmail) } })).id;
   const gonerToken = await login(gonerEmail, "Goner2026!!");
   const delReq = await api("POST", "/compliance/gdpr/requests", { requestType: "DELETE", reason: "close account" }, gonerToken);
   const delDone = await api("POST", `/compliance/gdpr/requests/${delReq.json.requestId}/approve`, {}, adminToken);
@@ -223,6 +226,8 @@ async function main(): Promise<void> {
 
   const originalByBuyer = await raw(`/documents/${doc.id}/file`, buyerToken);
   check("买家取不到原件（身份防火墙）", originalByBuyer.status === 403, originalByBuyer.status);
+
+  await finishSmoke(prisma, run, failures, [gonerId]);
 
   console.log(failures === 0 ? "\n✅ B 组合规冒烟全部通过" : `\n❌ ${failures} 项失败`);
   process.exitCode = failures === 0 ? 0 : 1;

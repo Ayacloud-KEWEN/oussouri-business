@@ -9,6 +9,7 @@ import { PrismaClient } from "@prisma/client";
 import { createCipheriv, createHmac, randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { finishSmoke } from "./lib/test-data";
 
 const BASE = "http://localhost:3001/v1";
 const prisma = new PrismaClient();
@@ -98,14 +99,18 @@ async function main(): Promise<void> {
   const adminToken = adminLogin.json.accessToken as string;
 
   console.log("2. 注册供采双方");
+  // 公司名带 run 时间戳：早期直接借用真实公司名，导致每跑一次就多一对与华芝宝/JINGLIN
+  // 同名的影子主体，后台名录分不清真假（seed-french-partners 找 JINGLIN 时被这个坑过）。
+  const supplierCompany = `HZB Supplier ${run}`;
+  const buyerCompany = `Jinglin Buyer ${run}`;
   const supplierReg = await api("POST", "/auth/register", {
     email: supplierEmail, password: "Supplier2026!!", displayName: "HZB Ops", partyType: "SUPPLIER",
-    companyName: "黑龙江华芝宝生物科技有限公司", countryIso2: "CN",
+    companyName: supplierCompany, countryIso2: "CN",
   });
   check("供应商注册 (SP- 代码)", supplierReg.json?.orgCode?.startsWith("SP-"), supplierReg.json);
   const buyerReg = await api("POST", "/auth/register", {
-    email: buyerEmail, password: "BuyerDev2026!!", displayName: "Jinglin Chef", partyType: "BUYER",
-    companyName: "SAS JINGLIN PARIS", countryIso2: "FR", buyerType: "IMPORTER",
+    email: buyerEmail, password: "BuyerDev2026!!", displayName: `Jinglin Chef ${run}`, partyType: "BUYER",
+    companyName: buyerCompany, countryIso2: "FR", buyerType: "IMPORTER",
   });
   check("采购商注册 (BY- 代码)", buyerReg.json?.orgCode?.startsWith("BY-"), buyerReg.json);
 
@@ -153,7 +158,7 @@ async function main(): Promise<void> {
   check("匿名目录可见产品", Boolean(listed));
   check("匿名仅见供应商代码", listed?.supplierCode?.startsWith("SP-"), listed);
   check("匿名不见价格", listed?.skus?.[0]?.priceTiers === "LOGIN_REQUIRED");
-  const anyLeak = JSON.stringify(publicList.json).includes("华芝宝");
+  const anyLeak = JSON.stringify(publicList.json).includes(supplierCompany);
   check("公开响应无公司名泄露", !anyLeak);
 
   console.log("7. 下单（阶梯价 50kg 档 €302）");
@@ -226,7 +231,9 @@ async function main(): Promise<void> {
   const esc = await api("POST", `/admin/parties/${buyerReg.json.orgCode}/escalations`, { fields: ["companyName"], reason: "开具增值税发票需要真实抬头" }, adminToken);
   check("低敏穿透即时放行", esc.json?.status === "APPROVED", esc.json);
   const sensitive = await api("GET", `/admin/parties/${buyerReg.json.orgCode}/sensitive?escalationId=${esc.json.escalationId}`, undefined, adminToken);
-  check("解密读取公司名", sensitive.json?.companyName === "SAS JINGLIN PARIS", sensitive.json);
+  check("解密读取公司名", sensitive.json?.companyName === buyerCompany, sensitive.json);
+
+  await finishSmoke(prisma, run, failures);
 
   console.log(failures === 0 ? "\n✅ 冒烟全部通过" : `\n❌ ${failures} 项失败`);
   process.exitCode = failures === 0 ? 0 : 1;

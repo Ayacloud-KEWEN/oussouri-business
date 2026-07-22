@@ -9,6 +9,7 @@ import { PrismaClient } from "@prisma/client";
 import { createCipheriv, createHmac, randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { finishSmoke } from "./lib/test-data";
 
 const BASE = "http://localhost:3001/v1";
 const prisma = new PrismaClient();
@@ -181,6 +182,8 @@ async function main(): Promise<void> {
   const myCall = calls.json?.find?.((c: any) => c.callId === call.json.callId);
   check("回调更新时长与结果", myCall?.durationSec === 192 && myCall?.outcome === "CONNECTED", myCall);
   check("通话记录仅含组织代码", myCall?.targetOrgCode === buyerReg.json.orgCode);
+
+  await finishSmoke(prisma, run, failures);
 
   console.log(failures === 0 ? "\n✅ P2.3-2.5 冒烟全部通过" : `\n❌ ${failures} 项失败`);
   process.exitCode = failures === 0 ? 0 : 1;

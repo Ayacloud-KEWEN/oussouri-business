@@ -8,6 +8,7 @@ import { PrismaClient } from "@prisma/client";
 import { createCipheriv, createHmac, randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { finishSmoke } from "./lib/test-data";
 
 const BASE = "http://localhost:3001/v1";
 const prisma = new PrismaClient();
@@ -190,6 +191,8 @@ async function main(): Promise<void> {
   check("扣减 30kg，余 20", Number(deduct.json?.remainingKg) === 20, deduct.json);
   const overdraw = await api("POST", `/customs/cites-permits/${encodeURIComponent(`2026CN/EC${run}/HBB`)}/deduct`, { kg: 30 }, customsToken);
   check("超配额扣减被拒", overdraw.status === 409 && overdraw.json?.code === "CITES_QUOTA_EXCEEDED", overdraw.json);
+
+  await finishSmoke(prisma, run, failures);
 
   console.log(failures === 0 ? "\n✅ 履约冒烟全部通过" : `\n❌ ${failures} 项失败`);
   process.exitCode = failures === 0 ? 0 : 1;

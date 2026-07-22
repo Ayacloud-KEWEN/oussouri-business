@@ -2,6 +2,13 @@
   "name": "@oussouri/api",
   "version": "0.1.0",
   "private": true,
+  "//files": "生产镜像白名单：pnpm deploy 只搬这几项，源码/测试/散落目录进不去（uploads 泄露事故后加固）",
+  "files": [
+    "dist",
+    "prisma",
+    "scripts",
+    "tsconfig.json"
+  ],
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
@@ -32,6 +39,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.35.3",
+    "tsx": "^4.19.0",
     "ws": "^8.21.0",
     "zod": "^3.24.0"
   },
@@ -44,7 +52,6 @@
     "@types/ws": "^8.18.1",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",
-    "tsx": "^4.19.0",
     "typescript": "^5.8.0"
   }
 }
