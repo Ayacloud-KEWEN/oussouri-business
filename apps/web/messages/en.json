@@ -704,5 +704,29 @@
     "hint": "Complete Stripe onboarding (company details and bank account) so the platform can pay escrowed funds to you. Orders still work without it, but payouts are blocked.",
     "doneHint": "Ready to receive payouts. Once the buyer confirms delivery, funds less commission are transferred to your account automatically.",
     "requirements": "Stripe still needs"
+  },
+  "profile": {
+    "title": "Company profile",
+    "privacyNote": "Stored encrypted — buyers only ever see your platform code, never your company name or contact details",
+    "contacts": "Contacts",
+    "certificates": "Certificates",
+    "citesQuota": "CITES quotas",
+    "empty": "No records yet",
+    "add": "Add",
+    "remove": "Remove",
+    "primary": "primary",
+    "setPrimary": "Set as primary",
+    "name": "Name",
+    "position": "Role",
+    "phone": "Phone",
+    "email": "Email",
+    "certNo": "Certificate no.",
+    "issuer": "Issuing authority",
+    "expiry": "Valid until",
+    "certReviewNote": "Self-registered certificates start as pending and take effect once the platform verifies them.",
+    "permitNo": "Permit no.",
+    "species": "Species code",
+    "quotaKg": "Quota (kg)",
+    "remaining": "left"
   }
 }

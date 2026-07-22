@@ -704,5 +704,29 @@
     "hint": "完成 Stripe 入驻（提交企业与银行账户资料）后，平台才能把买家托管的货款打到你的账户。未入驻时订单可以正常成交，但放款会被拦截。",
     "doneHint": "已可接收放款。买家签收后，扣除平台佣金的货款将自动转入你的账户。",
     "requirements": "Stripe 要求补充"
+  },
+  "profile": {
+    "title": "企业档案",
+    "privacyNote": "以下信息加密存储，买家仅见你的平台代码，绝不展示企业名称与联系方式",
+    "contacts": "联系人",
+    "certificates": "资质证书",
+    "citesQuota": "CITES 配额",
+    "empty": "暂无记录",
+    "add": "添加",
+    "remove": "删除",
+    "primary": "主联系人",
+    "setPrimary": "设为主联系人",
+    "name": "姓名",
+    "position": "职务",
+    "phone": "电话",
+    "email": "邮箱",
+    "certNo": "证书编号",
+    "issuer": "签发机构",
+    "expiry": "有效期至",
+    "certReviewNote": "自助登记的证书状态为「待核验」，平台核验通过后生效。",
+    "permitNo": "许可证号",
+    "species": "物种代码",
+    "quotaKg": "配额(kg)",
+    "remaining": "剩余"
   }
 }

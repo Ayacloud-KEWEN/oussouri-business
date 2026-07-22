@@ -264,7 +264,7 @@ export class CatalogService {
    */
   async updateProduct(
     productCode: string,
-    input: { name?: string; description?: string; speciesCode?: string; gradeCode?: string; hsCode?: string },
+    input: { name?: string; description?: string; speciesCode?: string; gradeCode?: string; hsCode?: string; attributes?: Record<string, unknown> },
     user: JwtPayload,
   ) {
     const product = await this.ownedProduct(productCode, user);
@@ -281,6 +281,7 @@ export class CatalogService {
           ...(input.speciesCode !== undefined ? { speciesCode: input.speciesCode } : {}),
           ...(input.gradeCode !== undefined ? { gradeCode: input.gradeCode } : {}),
           ...(input.hsCode !== undefined ? { hsCode: input.hsCode } : {}),
+          ...(input.attributes !== undefined ? { attributes: input.attributes as Prisma.InputJsonValue } : {}),
           ...(needsReview ? { status: "PENDING_REVIEW" } : {}),
           updatedBy: user.sub,
           version: { increment: 1 },
@@ -369,7 +370,10 @@ export class CatalogService {
       orderBy: { createdAt: "desc" },
       include: { skus: { where: { deletedAt: null } } },
     });
-    return rows.map((p) => ({ code: p.publicCode, name: p.name, description: p.description, status: p.status, skuCount: p.skus.length }));
+    return rows.map((p) => ({
+      code: p.publicCode, name: p.name, description: p.description, status: p.status,
+      attributes: p.attributes, skuCount: p.skus.length,
+    }));
   }
 
   private async ownedProduct(publicCode: string, user: JwtPayload) {

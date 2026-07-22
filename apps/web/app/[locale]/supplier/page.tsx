@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
-import { api } from "@/lib/api";
+import { api, getSession } from "@/lib/api";
 import { GettingStarted } from "@/components/getting-started";
 import { ConnectOnboarding } from "@/components/connect-onboarding";
+import { SupplierProfile } from "@/components/supplier-profile";
 
 interface SupplierProduct { code: string; name: string; description: string | null; status: string; skuCount: number }
 interface Lot { skuCode: string; lotNo: string; qtyOnHand: string; qtyReserved: string; expiresAt: string; status: string }
@@ -234,6 +235,9 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
 
       {/* 收款入驻（R1-2）：未完成时放款会被拦截 */}
       <ConnectOnboarding dict={dict} locale={locale} />
+
+      {/* 企业档案自助维护（R1.6-2） */}
+      <SupplierProfile dict={dict} orgCode={getSession()?.orgCode} />
 
       <section className="space-y-3">
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.supplier.products}</h2>

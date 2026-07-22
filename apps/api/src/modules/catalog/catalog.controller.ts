@@ -44,6 +44,7 @@ class UpdateProductDto {
   @IsOptional() @IsString() speciesCode?: string;
   @IsOptional() @IsString() gradeCode?: string;
   @IsOptional() @IsString() @MaxLength(20) hsCode?: string;
+  @IsOptional() @IsObject() attributes?: Record<string, unknown>;
 }
 
 class MediaDto {

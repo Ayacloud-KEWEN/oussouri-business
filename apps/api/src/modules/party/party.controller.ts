@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
-import { ArrayNotEmpty, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from "class-validator";
+import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/common";
+import { ArrayNotEmpty, IsArray, IsDateString, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from "class-validator";
 import { PartyService } from "./party.service";
 import { CurrentUser, Roles } from "../iam/roles.guard";
 import type { JwtPayload } from "../iam/auth.types";
@@ -26,6 +26,14 @@ class ContactDto {
   @IsOptional() isPrimary?: boolean;
 }
 
+class CertificateDto {
+  @IsString() @MaxLength(50) certType!: string;
+  @IsString() @MaxLength(100) certNo!: string;
+  @IsOptional() @IsString() @MaxLength(100) issuer?: string;
+  @IsOptional() @IsDateString() issueDate?: string;
+  @IsOptional() @IsDateString() expiryDate?: string;
+}
+
 @Controller()
 export class PartyController {
   constructor(private readonly party: PartyService) {}
@@ -38,6 +46,32 @@ export class PartyController {
   @Post("party/contacts")
   addContact(@Body() dto: ContactDto, @CurrentUser() user: JwtPayload) {
     return this.party.addContact(dto, user);
+  }
+
+  // 自助档案维护（R1.6-2）：仅本组织
+  @Get("party/contacts")
+  listContacts(@CurrentUser() user: JwtPayload) {
+    return this.party.listContacts(user);
+  }
+
+  @Delete("party/contacts/:id")
+  removeContact(@Param("id") id: string, @CurrentUser() user: JwtPayload) {
+    return this.party.removeContact(id, user);
+  }
+
+  @Get("party/certificates")
+  listCertificates(@CurrentUser() user: JwtPayload) {
+    return this.party.listCertificates(user);
+  }
+
+  @Post("party/certificates")
+  addCertificate(@Body() dto: CertificateDto, @CurrentUser() user: JwtPayload) {
+    return this.party.addCertificate(dto, user);
+  }
+
+  @Delete("party/certificates/:id")
+  removeCertificate(@Param("id") id: string, @CurrentUser() user: JwtPayload) {
+    return this.party.removeCertificate(id, user);
   }
 
   @Roles("ADMIN")

@@ -704,5 +704,29 @@
     "hint": "Complétez l'inscription Stripe (informations société et compte bancaire) pour que la plateforme puisse vous verser les fonds sous séquestre. Les commandes fonctionnent sans cela, mais les versements sont bloqués.",
     "doneHint": "Prêt à recevoir les versements. Après confirmation de réception, les fonds moins la commission sont transférés automatiquement.",
     "requirements": "Stripe demande encore"
+  },
+  "profile": {
+    "title": "Profil de l'entreprise",
+    "privacyNote": "Stocké chiffré — les acheteurs ne voient que votre code plateforme, jamais votre raison sociale ni vos coordonnées",
+    "contacts": "Contacts",
+    "certificates": "Certificats",
+    "citesQuota": "Quotas CITES",
+    "empty": "Aucun enregistrement",
+    "add": "Ajouter",
+    "remove": "Supprimer",
+    "primary": "principal",
+    "setPrimary": "Définir comme principal",
+    "name": "Nom",
+    "position": "Fonction",
+    "phone": "Téléphone",
+    "email": "E-mail",
+    "certNo": "N° de certificat",
+    "issuer": "Autorité émettrice",
+    "expiry": "Valable jusqu'au",
+    "certReviewNote": "Les certificats saisis passent en attente et prennent effet après vérification par la plateforme.",
+    "permitNo": "N° de permis",
+    "species": "Code espèce",
+    "quotaKg": "Quota (kg)",
+    "remaining": "restant"
   }
 }

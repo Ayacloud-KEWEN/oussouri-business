@@ -79,7 +79,15 @@ pnpm --filter @oussouri/web build
 **2026-07-21 增补（R1.5-7 / R1.5-8）**：
 - **产品品质数据**：`Product.attributes` JSON + 产品详情页展示区（工艺特色/营养成分表/品鉴/搭配），详见上条良美案例
 - **上手引导**（用户反馈"不知道怎么用"）：`components/getting-started.tsx` 按账号真实数据判定进度，买家 5 步 / 供应商 6 步，当前步高亮并给直达链接，全完成自动折叠；帮助页加「我想…」场景导航 + 12 条术语速查 + 6 条实用 FAQ。文案在 `messages/*.json` 的 `guide` 段与 `help` 段（三语），改措辞不必动代码
-- ⚠️ **已知欠账**：引导第 5 步文案写了"订单页可看报关状态、航段与冷链温度记录"，但**订单详情页尚不存在**（见 development-guide §9 的 R1.6-1，建议下一批优先补齐）
+- ~~⚠️ 已知欠账：订单详情页不存在~~ 已于 2026-07-21 补齐（见下）
+
+**2026-07-21 大批次（R1.6-1 / R1-3 / R1-1 / R1-2 / R1.6-2 一并交付）**：
+1. **订单详情页** `/[locale]/orders/[code]`：`GET /orders/:code` 聚合（明细/付款/报关/单证/审计时间线，对手方仅平台代码、佣金对买家隐藏）+ shipment 接口补航段时刻与温度明细；页面含托管面板、单证齐备度、冷链 SVG 曲线（阴影为 -2~0℃ 合规带）
+2. **StoragePort**（`modules/files/storage.port.ts`）：本地磁盘 / S3 兼容双适配器，**手写 SigV4 无 SDK**；工厂在密钥缺失或为 `xxx` 占位时回退本地；兼容 `S3_BUCKET` 与 `.env` 里的 `S3_BUCKET_PRIVATE`
+3. **单证原件私有通道** `POST/GET /documents/:id/file`：逐次鉴权 + 上传下载均审计；**买家取不到原件**（走脱敏副本），订单 payload 只给 `hasFile` 布尔不给对象键
+4. **Stripe 收银台与 Connect**：`stripe-checkout.tsx` 有真实 key 走 Elements、无 key 回退模拟支付并明示演示模式；Connect 建号/入驻链接/状态回写；**真实网关下供应商未入驻会拦截放款**（此前会打到 `acct_fake_supplier`）
+5. **供应商自助档案**：联系人/资质/CITES 配额自助增删（`/party/contacts`、`/party/certificates` 全 CRUD），自助登记证书状态为 PENDING 待核验；产品 `attributes` 可 PATCH
+> 待你提供密钥后才能端到端联调的两项：Stripe（`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`/`STRIPE_WEBHOOK_SECRET`）与 OVH S3（`S3_*`）。未配时系统按假适配器/本地磁盘正常运行。
 
 **下一步 R1（真实收款）**，按 development-guide §9 的 R1 表执行（R1.5 剩余项 -1/-2/-3/-4 可穿插小步交付），建议顺序与要点：
 

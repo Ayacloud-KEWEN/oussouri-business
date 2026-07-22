@@ -136,6 +136,77 @@ export class PartyService {
     return { contactId: contact.id, isPrimary: contact.isPrimary };
   }
 
+  // ---------- 自助档案维护（R1.6-2）：本组织可见可改，对手方永不可见 ----------
+
+  /** 本组织联系人列表（解密返回：这是自己的数据） */
+  async listContacts(user: JwtPayload) {
+    if (!user.orgId) throw new NotFoundException({ code: "NOT_FOUND", detail: "无组织" });
+    const rows = await this.prisma.contact.findMany({
+      where: { orgId: user.orgId, deletedAt: null },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      name: this.crypto.decrypt(c.nameEnc),
+      phone: c.phoneEnc ? this.crypto.decrypt(c.phoneEnc) : null,
+      email: c.emailEnc ? this.crypto.decrypt(c.emailEnc) : null,
+      position: c.positionEnc ? this.crypto.decrypt(c.positionEnc) : null,
+      isPrimary: c.isPrimary,
+    }));
+  }
+
+  async removeContact(id: string, user: JwtPayload) {
+    if (!user.orgId) throw new NotFoundException({ code: "NOT_FOUND", detail: "无组织" });
+    const contact = await this.prisma.contact.findFirst({ where: { id, orgId: user.orgId, deletedAt: null } });
+    if (!contact) throw new NotFoundException({ code: "NOT_FOUND", detail: "联系人不存在" });
+    await this.prisma.contact.update({ where: { id }, data: { deletedAt: new Date(), updatedBy: user.sub } });
+    return { removed: id };
+  }
+
+  /** 本组织资质证书列表 */
+  async listCertificates(user: JwtPayload) {
+    if (!user.orgId) throw new NotFoundException({ code: "NOT_FOUND", detail: "无组织" });
+    const rows = await this.prisma.partyCertificate.findMany({
+      where: { orgId: user.orgId, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, certType: true, certNo: true, issuer: true, issueDate: true, expiryDate: true, status: true },
+    });
+    return rows;
+  }
+
+  async addCertificate(
+    input: { certType: string; certNo: string; issuer?: string; issueDate?: string; expiryDate?: string },
+    user: JwtPayload,
+  ) {
+    if (!user.orgId) throw new NotFoundException({ code: "NOT_FOUND", detail: "无组织" });
+    const cert = await this.prisma.partyCertificate.create({
+      data: {
+        orgId: user.orgId,
+        certType: input.certType,
+        certNo: input.certNo,
+        issuer: input.issuer,
+        issueDate: input.issueDate ? new Date(input.issueDate) : undefined,
+        expiryDate: input.expiryDate ? new Date(input.expiryDate) : undefined,
+        // 自助登记默认待平台核验，避免自证有效
+        status: "PENDING",
+        createdBy: user.sub,
+      },
+    });
+    await this.audit.log({
+      actorId: user.sub, actorRole: user.roles.join(","), action: "CERT_SELF_REGISTERED",
+      targetType: "PartyCertificate", targetId: cert.id, diff: { certType: cert.certType, certNo: cert.certNo },
+    });
+    return { certificateId: cert.id, status: cert.status };
+  }
+
+  async removeCertificate(id: string, user: JwtPayload) {
+    if (!user.orgId) throw new NotFoundException({ code: "NOT_FOUND", detail: "无组织" });
+    const cert = await this.prisma.partyCertificate.findFirst({ where: { id, orgId: user.orgId, deletedAt: null } });
+    if (!cert) throw new NotFoundException({ code: "NOT_FOUND", detail: "证书不存在" });
+    await this.prisma.partyCertificate.update({ where: { id }, data: { deletedAt: new Date(), updatedBy: user.sub } });
+    return { removed: id };
+  }
+
   /** 穿透申请：低敏即时放行（事后抄送），高敏待超管审批 */
   async requestEscalation(publicCode: string, fields: string[], reason: string, actor: JwtPayload) {
     const org = await this.prisma.organization.findFirst({ where: { publicCode, deletedAt: null } });
