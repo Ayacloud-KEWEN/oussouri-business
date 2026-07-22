@@ -22,7 +22,11 @@ import { TradingModule } from "../trading/trading.module";
         }
         return isPlaceholder
           ? new FakeStripeAdapter()
-          : new RestStripeAdapter(key, config.get<string>("STRIPE_WEBHOOK_SECRET") ?? "");
+          : new RestStripeAdapter(
+              key,
+              config.get<string>("STRIPE_WEBHOOK_SECRET") ?? "",
+              config.get<string>("STRIPE_PUBLISHABLE_KEY") ?? "",
+            );
       },
     },
   ],

@@ -5,6 +5,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { GettingStarted } from "@/components/getting-started";
+import { ConnectOnboarding } from "@/components/connect-onboarding";
 
 interface SupplierProduct { code: string; name: string; description: string | null; status: string; skuCount: number }
 interface Lot { skuCode: string; lotNo: string; qtyOnHand: string; qtyReserved: string; expiresAt: string; status: string }
@@ -230,6 +231,9 @@ export default function SupplierPage({ params }: { params: Promise<{ locale: str
       {message && <p className="text-sm" style={{ color: "var(--color-muted)" }}>{message}</p>}
 
       <GettingStarted dict={dict} steps={guideSteps} />
+
+      {/* 收款入驻（R1-2）：未完成时放款会被拦截 */}
+      <ConnectOnboarding dict={dict} locale={locale} />
 
       <section className="space-y-3">
         <h2 className="font-medium" style={{ color: "var(--color-accent)" }}>{dict.supplier.products}</h2>

@@ -690,6 +690,19 @@
     "timeline": "状态时间线",
     "viewDetail": "查看详情",
     "viewFile": "查看原件",
-    "uploadFile": "上传原件"
+    "uploadFile": "上传原件",
+    "simulatedPayment": "开发/演示模式：未配置 Stripe 密钥，点击将模拟支付成功（真实密钥配置后自动切换为银行卡收银台）。"
+  },
+  "connect": {
+    "title": "收款账户（Stripe Connect）",
+    "notStarted": "未入驻",
+    "pending": "待完成",
+    "verifying": "审核中",
+    "completed": "已入驻",
+    "start": "开始入驻",
+    "continue": "继续完成",
+    "hint": "完成 Stripe 入驻（提交企业与银行账户资料）后，平台才能把买家托管的货款打到你的账户。未入驻时订单可以正常成交，但放款会被拦截。",
+    "doneHint": "已可接收放款。买家签收后，扣除平台佣金的货款将自动转入你的账户。",
+    "requirements": "Stripe 要求补充"
   }
 }

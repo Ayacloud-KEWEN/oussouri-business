@@ -120,6 +120,13 @@ export class SettlementService {
 
     const supplierAmount = order.grandTotal.minus(order.commissionAmount);
     const stripeAccount = await this.prisma.stripeAccount.findUnique({ where: { orgId: order.supplierOrgId } });
+    // 真实网关下必须有已完成入驻的 Connect 账户，否则放款会打到占位账户（R1-2）
+    if (!stripeAccount?.stripeAccountId && this.stripe.publishableKey) {
+      throw new ConflictException({
+        code: "SUPPLIER_PAYOUT_NOT_READY",
+        detail: "供应商尚未完成 Stripe Connect 入驻，无法放款",
+      });
+    }
     const destination = stripeAccount?.stripeAccountId ?? "acct_fake_supplier";
     const transferResult = await this.stripe.createTransfer(
       Math.round(supplierAmount.mul(100).toNumber()),
@@ -158,6 +165,64 @@ export class SettlementService {
     });
     await this.trading.transition(order.publicCode, "COMPLETED", SYSTEM_ACTOR, { asSystem: true, reason: "escrow released" });
     return { orderCode, transferId: transferResult.transferId, supplierAmount: supplierAmount.toString() };
+  }
+
+  // ---------- Stripe Connect 入驻（R1-2） ----------
+
+  /** 前端 Elements 初始化用；无真实密钥时返回 null，前端回退开发态模拟支付 */
+  publicConfig() {
+    return { publishableKey: this.stripe.publishableKey, live: Boolean(this.stripe.publishableKey) };
+  }
+
+  /**
+   * 生成入驻链接：首次调用创建 Connect 账户并落库，随后每次生成一次性 onboarding 链接。
+   * 供应商完成 KYC 后由 /connect/status 回写状态（Stripe 亦会发 account.updated webhook）。
+   */
+  async connectOnboarding(user: JwtPayload, returnUrl: string, refreshUrl: string) {
+    if (!user.orgId) throw new ForbiddenException({ code: "PERM_DENIED", detail: "需要供应商身份" });
+    const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: user.orgId } });
+    let account = await this.prisma.stripeAccount.findUnique({ where: { orgId: org.id } });
+
+    if (!account) {
+      const created = await this.stripe.createConnectAccount({ country: org.countryIso2, orgCode: org.publicCode });
+      account = await this.prisma.stripeAccount.create({
+        data: {
+          orgId: org.id,
+          stripeAccountId: created.accountId,
+          onboardingStatus: "PENDING",
+          defaultCurrency: org.countryIso2 === "CN" ? "eur" : undefined,
+        },
+      });
+      await this.audit.log({
+        actorId: user.sub, actorRole: user.roles.join(","), action: "CONNECT_ACCOUNT_CREATED",
+        targetType: "StripeAccount", targetId: account.id, diff: { stripeAccountId: created.accountId },
+      });
+    }
+
+    const link = await this.stripe.createAccountLink(account.stripeAccountId, refreshUrl, returnUrl);
+    return { url: link.url, expiresAt: link.expiresAt, stripeAccountId: account.stripeAccountId };
+  }
+
+  /** 查询并回写入驻状态（供应商工作台轮询/返回时调用） */
+  async connectStatus(user: JwtPayload) {
+    if (!user.orgId) throw new ForbiddenException({ code: "PERM_DENIED", detail: "需要供应商身份" });
+    const account = await this.prisma.stripeAccount.findUnique({ where: { orgId: user.orgId } });
+    if (!account) return { onboarded: false, status: "NOT_STARTED" as const, requirementsDue: [] as string[] };
+
+    const status = await this.stripe.getAccountStatus(account.stripeAccountId);
+    const next = status.payoutsEnabled ? "COMPLETED" : status.detailsSubmitted ? "PENDING_VERIFICATION" : "PENDING";
+    if (next !== account.onboardingStatus) {
+      await this.prisma.stripeAccount.update({
+        where: { id: account.id },
+        data: { onboardingStatus: next, version: { increment: 1 } },
+      });
+    }
+    return {
+      onboarded: status.payoutsEnabled,
+      status: next,
+      requirementsDue: status.requirementsDue,
+      stripeAccountId: account.stripeAccountId,
+    };
   }
 
   /** 账本查询（财务） */

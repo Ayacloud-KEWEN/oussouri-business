@@ -5,6 +5,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { TemperatureChart } from "@/components/temperature-chart";
+import { StripeCheckout } from "@/components/stripe-checkout";
 
 interface OrderItem { qty: string; unitPrice: string; lineTotal: string; snapshot: { productName?: string; skuCode?: string; packSpec?: string } }
 interface Payment { method: string; amount: string; currency: string; status: string; paidAt: string | null; createdAt: string }
@@ -181,15 +182,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ locale: 
           )}
           <p className="text-xs" style={{ color: "var(--color-muted)" }}>💡 {t.escrowNote}</p>
           {isBuyer && order.status === "PLACED" && (
-            <button
-              className="btn btn-primary"
-              onClick={() => act(async () => {
-                const checkout = await api<{ intentId: string }>("POST", "/payments/checkout", { orderCode: order.code });
-                await api("POST", "/webhooks/stripe", { type: "payment_intent.succeeded", data: { object: { id: checkout.intentId } } });
-              })}
-            >
-              {t.pay}
-            </button>
+            <StripeCheckout orderCode={order.code} dict={dict} onPaid={() => void refresh()} />
           )}
           {isBuyer && ["SHIPPED", "CUSTOMS_CLEARED", "IN_CUSTOMS"].includes(order.status) && (
             <button className="btn btn-primary" onClick={() => act(() => api("POST", `/buyer/orders/${order.code}/confirm-delivery`, {}))}>

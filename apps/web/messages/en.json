@@ -690,6 +690,19 @@
     "timeline": "Status timeline",
     "viewDetail": "View detail",
     "viewFile": "View file",
-    "uploadFile": "Upload"
+    "uploadFile": "Upload",
+    "simulatedPayment": "Demo mode: no Stripe key configured, so this simulates a successful payment. Configure real keys to switch to the card checkout."
+  },
+  "connect": {
+    "title": "Payout account (Stripe Connect)",
+    "notStarted": "not started",
+    "pending": "incomplete",
+    "verifying": "under review",
+    "completed": "onboarded",
+    "start": "Start onboarding",
+    "continue": "Continue",
+    "hint": "Complete Stripe onboarding (company details and bank account) so the platform can pay escrowed funds to you. Orders still work without it, but payouts are blocked.",
+    "doneHint": "Ready to receive payouts. Once the buyer confirms delivery, funds less commission are transferred to your account automatically.",
+    "requirements": "Stripe still needs"
   }
 }

@@ -690,6 +690,19 @@
     "timeline": "Chronologie des statuts",
     "viewDetail": "Voir le détail",
     "viewFile": "Voir le fichier",
-    "uploadFile": "Téléverser"
+    "uploadFile": "Téléverser",
+    "simulatedPayment": "Mode démo : aucune clé Stripe configurée, le paiement est simulé. Configurez les clés réelles pour activer le paiement par carte."
+  },
+  "connect": {
+    "title": "Compte de versement (Stripe Connect)",
+    "notStarted": "non commencé",
+    "pending": "incomplet",
+    "verifying": "en vérification",
+    "completed": "validé",
+    "start": "Commencer",
+    "continue": "Continuer",
+    "hint": "Complétez l'inscription Stripe (informations société et compte bancaire) pour que la plateforme puisse vous verser les fonds sous séquestre. Les commandes fonctionnent sans cela, mais les versements sont bloqués.",
+    "doneHint": "Prêt à recevoir les versements. Après confirmation de réception, les fonds moins la commission sont transférés automatiquement.",
+    "requirements": "Stripe demande encore"
   }
 }

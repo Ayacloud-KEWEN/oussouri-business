@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@oussouri/shared": "workspace:*",
+    "@stripe/react-stripe-js": "^6.8.0",
+    "@stripe/stripe-js": "^9.12.0",
     "next": "^15.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

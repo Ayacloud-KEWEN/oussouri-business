@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import { StripePort, PaymentIntentResult, TransferResult } from "./stripe.port";
+import {
+  StripePort, PaymentIntentResult, TransferResult,
+  ConnectAccountResult, AccountLinkResult, ConnectAccountStatus,
+} from "./stripe.port";
 
 /**
  * 开发/测试用假适配器：STRIPE_SECRET_KEY 为占位值时启用，
@@ -29,6 +32,27 @@ export class FakeStripeAdapter extends StripePort {
       return null;
     }
   }
+
+  async createConnectAccount(input: { country: string; orgCode: string }): Promise<ConnectAccountResult> {
+    const id = `acct_fake_${input.orgCode.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+    this.logger.log(`[FAKE] Connect account ${id} (${input.country})`);
+    return { accountId: id };
+  }
+
+  async createAccountLink(accountId: string, _refreshUrl: string, returnUrl: string): Promise<AccountLinkResult> {
+    // 开发态直接回跳 returnUrl，前端流程与真实一致
+    this.logger.log(`[FAKE] AccountLink for ${accountId}`);
+    return { url: `${returnUrl}?fake_onboarding=1`, expiresAt: Math.floor(Date.now() / 1000) + 3600 };
+  }
+
+  async getAccountStatus(accountId: string): Promise<ConnectAccountStatus> {
+    // 假适配器视为已完成，便于开发环境走通放款
+    return { accountId, payoutsEnabled: true, chargesEnabled: true, detailsSubmitted: true, requirementsDue: [] };
+  }
+
+  get publishableKey(): string | null {
+    return null;
+  }
 }
 
 /**
@@ -37,18 +61,24 @@ export class FakeStripeAdapter extends StripePort {
  */
 @Injectable()
 export class RestStripeAdapter extends StripePort {
-  constructor(private readonly secretKey: string, private readonly webhookSecret: string) {
+  constructor(
+    private readonly secretKey: string,
+    private readonly webhookSecret: string,
+    private readonly pubKey = "",
+  ) {
     super();
   }
 
-  private async call(path: string, params: Record<string, string>): Promise<Record<string, unknown>> {
-    const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-      method: "POST",
+  private async call(path: string, params: Record<string, string>, method: "POST" | "GET" = "POST"): Promise<Record<string, unknown>> {
+    const isGet = method === "GET";
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(`https://api.stripe.com/v1/${path}${isGet && qs ? `?${qs}` : ""}`, {
+      method,
       headers: {
         Authorization: `Bearer ${this.secretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams(params).toString(),
+      body: isGet ? undefined : qs,
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
@@ -92,5 +122,45 @@ export class RestStripeAdapter extends StripePort {
     const b = Buffer.from(v1);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
     return JSON.parse(rawBody.toString()) as { type: string; data: unknown };
+  }
+
+  // ---- Connect（R1-2）：Express 账户，平台承担手续费与结算 ----
+
+  async createConnectAccount(input: { country: string; email?: string; orgCode: string }): Promise<ConnectAccountResult> {
+    const params: Record<string, string> = {
+      type: "express",
+      country: input.country.toUpperCase(),
+      "capabilities[transfers][requested]": "true",
+      "metadata[orgCode]": input.orgCode,
+    };
+    if (input.email) params.email = input.email;
+    const account = await this.call("accounts", params);
+    return { accountId: account.id as string };
+  }
+
+  async createAccountLink(accountId: string, refreshUrl: string, returnUrl: string): Promise<AccountLinkResult> {
+    const link = await this.call("account_links", {
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: "account_onboarding",
+    });
+    return { url: link.url as string, expiresAt: Number(link.expires_at ?? 0) };
+  }
+
+  async getAccountStatus(accountId: string): Promise<ConnectAccountStatus> {
+    const account = await this.call(`accounts/${accountId}`, {}, "GET");
+    const requirements = (account.requirements ?? {}) as { currently_due?: string[] };
+    return {
+      accountId,
+      payoutsEnabled: Boolean(account.payouts_enabled),
+      chargesEnabled: Boolean(account.charges_enabled),
+      detailsSubmitted: Boolean(account.details_submitted),
+      requirementsDue: requirements.currently_due ?? [],
+    };
+  }
+
+  get publishableKey(): string | null {
+    return this.pubKey || null;
   }
 }
