@@ -5,6 +5,7 @@ import { StateMachineService } from "../../kernel/state-machine/state-machine.se
 import { AuditService } from "../../kernel/audit/audit.service";
 import { CommunicationService } from "../communication/communication.service";
 import { StoragePort } from "../files/storage.port";
+import { DocumentRedactor, type MaskRegion } from "./document-redactor";
 import type { JwtPayload } from "../iam/auth.types";
 
 export interface ShipmentLegInput {
@@ -27,6 +28,7 @@ export class FulfillmentService {
     private readonly audit: AuditService,
     private readonly comm: CommunicationService,
     private readonly storage: StoragePort,
+    private readonly redactor: DocumentRedactor,
   ) {}
 
   // ---------- 运单（M10） ----------
@@ -261,7 +263,10 @@ export class FulfillmentService {
   /**
    * 生成脱敏副本并发送到对方平台档案：遮盖公章/厂名区域 + 平台水印 + 唯一追踪码。
    * 原件永不外发；副本可追踪（谁生成/发给谁/何时）。
-   * PDF 像素级遮盖渲染由 worker 异步处理（P3）；本阶段落地元数据流与档案送达。
+   *
+   * R1.6-3：原件已上传时做**像素级打码**——重新成像后落盘，收件方拿到的字节里不含被遮盖内容。
+   * 原件尚未上传（仅登记了单证元数据）时降级为元数据副本（`rendered: false`），
+   * 不阻断早期流程，但档案里可查出哪些副本还没有真实产物。
    */
   async createMaskedCopy(documentId: string, toOrgCode: string, user: JwtPayload) {
     const doc = await this.prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
@@ -273,13 +278,14 @@ export class FulfillmentService {
     if (!toOrg) throw new NotFoundException({ code: "NOT_FOUND", detail: "接收方不存在" });
 
     const trackingCode = `TRK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const rendered = await this.renderMaskedFile(doc, trackingCode, toOrg.publicCode);
     const copy = await this.prisma.maskedDocumentCopy.create({
       data: {
         documentId: doc.id,
         trackingCode,
         generatedBy: user.sub,
         sentToOrgId: toOrg.id,
-        fileKey: `masked/${trackingCode}.pdf`,
+        fileKey: rendered?.key ?? `masked/${trackingCode}.pending`,
         sentAt: new Date(),
       },
     });
@@ -289,13 +295,63 @@ export class FulfillmentService {
       action: "MASKED_DOC_SENT",
       targetType: "Document",
       targetId: doc.id,
-      diff: { trackingCode, toOrgCode, docType: doc.docType },
+      diff: { trackingCode, toOrgCode, docType: doc.docType, rendered: rendered !== null, regionsApplied: rendered?.regionsApplied ?? 0 },
     });
     const memberships = await this.prisma.membership.findMany({ where: { orgId: toOrg.id, deletedAt: null } });
     for (const m of memberships) {
       await this.comm.notifyUser(m.userId, "DOC_RECEIVED", { docType: doc.docType, trackingCode, docNo: doc.docNo });
     }
-    return { trackingCode, copyId: copy.id, docType: doc.docType };
+    return {
+      trackingCode,
+      copyId: copy.id,
+      docType: doc.docType,
+      rendered: rendered !== null,
+      regionsApplied: rendered?.regionsApplied ?? 0,
+    };
+  }
+
+  /** 取原件 → 按模板打码 → 落私有存储；原件缺失或格式不支持时返回 null（降级为元数据副本） */
+  private async renderMaskedFile(
+    doc: { id: string; fileKey: string; maskTemplate: Prisma.JsonValue },
+    trackingCode: string,
+    toOrgCode: string,
+  ): Promise<{ key: string; regionsApplied: number } | null> {
+    if (!doc.fileKey || doc.fileKey.startsWith("pending-upload/")) return null;
+    const sourceExt = (doc.fileKey.split(".").pop() ?? "").toLowerCase();
+    if (!DocumentRedactor.supports(sourceExt)) return null;
+    const original = await this.storage.get(doc.fileKey);
+    if (!original) return null;
+
+    const regions = ((doc.maskTemplate as { regions?: MaskRegion[] } | null)?.regions ?? []).filter(
+      (r) => Number.isFinite(r.x) && Number.isFinite(r.y) && r.w > 0 && r.h > 0,
+    );
+    const watermark = `OUSSOURI COPY · ${trackingCode} · for ${toOrgCode} only`;
+    const result = await this.redactor.redact(original.body, sourceExt, regions, watermark);
+    const key = `masked/${trackingCode}.${result.ext}`;
+    await this.storage.put(key, result.body, result.contentType);
+    return { key, regionsApplied: result.regionsApplied };
+  }
+
+  /** 接收方取脱敏副本文件：仅收件组织成员与内部角色；原件通道永不对收件方开放 */
+  async downloadMaskedCopy(trackingCode: string, user: JwtPayload) {
+    const copy = await this.prisma.maskedDocumentCopy.findUnique({
+      where: { trackingCode },
+      include: { document: { select: { docType: true, docNo: true } } },
+    });
+    if (!copy) throw new NotFoundException({ code: "NOT_FOUND", detail: "副本不存在" });
+    if (copy.sentToOrgId !== user.orgId && !this.isStaff(user)) {
+      throw new ForbiddenException({ code: "PERM_SCOPE_VIOLATION", detail: "仅收件方可取该副本" });
+    }
+    if (copy.fileKey.endsWith(".pending")) {
+      throw new NotFoundException({ code: "NOT_FOUND", detail: "该副本尚无渲染产物（原件未上传）" });
+    }
+    const obj = await this.storage.get(copy.fileKey);
+    if (!obj) throw new NotFoundException({ code: "NOT_FOUND", detail: "副本不存在于存储" });
+    await this.audit.log({
+      actorId: user.sub, actorRole: user.roles.join(","), action: "MASKED_DOC_DOWNLOADED",
+      targetType: "MaskedDocumentCopy", targetId: copy.id, diff: { trackingCode },
+    });
+    return { ...obj, filename: `${copy.document.docType}-${trackingCode}.${copy.fileKey.split(".").pop()}` };
   }
 
   // ---------- 单证原件上传/下载（R1-3，私有通道） ----------
@@ -362,6 +418,8 @@ export class FulfillmentService {
       issueDate: c.document.issueDate,
       expiryDate: c.document.expiryDate,
       sentAt: c.sentAt,
+      // 只给"有无产物"，不给对象键——收件方一律走 /documents/received/:trackingCode/file 回源
+      hasFile: !c.fileKey.endsWith(".pending"),
     }));
   }
 

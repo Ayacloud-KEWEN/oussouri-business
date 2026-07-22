@@ -19,6 +19,7 @@ import { BrokerageModule } from "./modules/brokerage/brokerage.module";
 import { FulfillmentModule } from "./modules/fulfillment/fulfillment.module";
 import { TraceabilityModule } from "./modules/traceability/traceability.module";
 import { FilesModule } from "./modules/files/files.module";
+import { ComplianceModule } from "./modules/compliance/compliance.module";
 import { I18nModule } from "./modules/i18n/i18n.module";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { VisibilityInterceptor } from "./kernel/visibility/visibility.interceptor";
@@ -42,6 +43,7 @@ import { VisibilityInterceptor } from "./kernel/visibility/visibility.intercepto
     FulfillmentModule,
     TraceabilityModule,
     FilesModule,
+    ComplianceModule,
     I18nModule,
   ],
   controllers: [HealthController],

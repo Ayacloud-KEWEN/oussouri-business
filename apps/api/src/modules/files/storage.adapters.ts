@@ -7,6 +7,7 @@ import { StoragePort, StoredObject } from "./storage.port";
 const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg",
   png: "image/png", webp: "image/webp",
+  json: "application/json", // GDPR 导出包（R1-7）
 };
 export const contentTypeOf = (key: string): string =>
   CONTENT_TYPES[key.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";

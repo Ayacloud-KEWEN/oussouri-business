@@ -181,7 +181,12 @@
       "ORDER_PAYMENT_LINK": "订单 {orderCode} 的支付链接已生成",
       "TEMP_BREACH": "订单 {orderCode} 冷链温度告警（第 {breachCount} 次）",
       "DOC_RECEIVED": "运单 {trackingCode} 收到单证 {docType}",
-      "ACCESS_ESCALATION": "有敏感数据穿透审批请求"
+      "ACCESS_ESCALATION": "有敏感数据穿透审批请求",
+      "CERT_EXPIRING": "{certType} 证照 {certNo} 将于 {expiryDate} 到期（剩余 {daysToExpiry} 天）",
+      "CERT_EXPIRY_DIGEST": "证照到期汇总：已过期 {expiredCount} 件，7 天内到期 {urgentCount} 件",
+      "GDPR_REQUEST_SUBMITTED": "收到数据主体请求（{requestType}），待审批",
+      "GDPR_REQUEST_REJECTED": "您的数据请求（{requestType}）未获批准，详见站内说明",
+      "GDPR_EXPORT_READY": "您的数据导出包已生成，请在 {expiresAt} 前下载"
     }
   },
   "buyer": {
@@ -237,7 +242,7 @@
       "PENDING": "待审核",
       "ACTIVE": "已激活",
       "SUSPENDED": "已冻结",
-      "INACTIVE": "已拒绝/停用"
+      "INACTIVE": "未启用"
     },
     "registeredAt": "注册于",
     "totalCount": "共 {total} 家",

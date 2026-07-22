@@ -387,6 +387,38 @@ model Session {
   @@schema("core")
 }
 
+/**
+ * GDPR 数据主体请求（R1-7）：Art.15 访问权（EXPORT）与 Art.17 被遗忘权（DELETE）。
+ * 导出产物落私有对象存储，凭一次性令牌下载；删除走匿名化，法定留存的交易/资金记录不删。
+ */
+model DataSubjectRequest {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  /** EXPORT | DELETE */
+  requestType   String
+  /** PENDING | COMPLETED | REJECTED */
+  status        String    @default("PENDING")
+  reason        String?
+  handledBy     String?   @db.Uuid
+  handledAt     DateTime?
+  /** 导出包对象键（仅 EXPORT） */
+  resultFileKey String?
+  /** 下载令牌哈希（明文只在批准响应里回一次） */
+  tokenHash     String?   @unique
+  /** 下载令牌有效期（GDPR 建议限时可取） */
+  expiresAt     DateTime?
+  /** 匿名化摘要（仅 DELETE），记录清了哪些表多少行 */
+  erasureReport Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  version       Int       @default(0)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("data_subject_requests")
+  @@schema("core")
+}
+
 model PasswordResetToken {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @db.Uuid

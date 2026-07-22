@@ -133,9 +133,9 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 | R1-2 | **供应商 Stripe Connect 入驻** ✅ 2026-07-21 | StripePort 加 Connect 三方法（建号/入驻链接/状态）；`POST /settlement/connect/onboarding`、`GET /settlement/connect/status`；供应商工作台入驻卡片；**未入驻时真实网关下放款被拦截**（不再打占位账户） | 已交付，**待配真实密钥端到端联调** |
 | R1-3 | **S3 文件真实上传** ✅ 2026-07-21 | `StoragePort` + 本地磁盘/S3 双适配器（手写 SigV4 零 SDK）；单证原件私有通道 `POST/GET /documents/:id/file`（逐次鉴权+审计，买家不可取原件）；产品图改走 Port | 已交付，**待配 S3 密钥切换后端** |
 | R1-4 | **邮件通道（SMTP）** ✅ 2026-07-22 | `communication/smtp.adapter.ts`：零依赖手写 SMTP 客户端（隐式 TLS 465 / STARTTLS 587、AUTH LOGIN、RFC2047 主题编码、行首点号转义、multipart）；工厂支持 `SMTP_HOST/USER/PASS` 或 `.env` 的 `SMTP_URL`，占位值回退日志适配器并在生产环境告警 | 已交付，**待配真实 SMTP 凭据发信验证**（SPF/DKIM/DMARC 需域名侧配置） |
-| R1-5 | 证书到期扫描任务 | CITES/SC 临期提醒 + 过期自动下架 | 表/索引就绪，**全项目仅 matchmaking 一个 @Cron**，此任务未写。库中已有过期证（华芝宝 2025 CITES）与待办证（良美 PENDING）可作验证素材 |
+| R1-5 | **证书到期扫描任务** ✅ 2026-07-22 | `compliance/cert-expiry.service.ts`：`@Cron("0 3 * * *")` 每日扫 PartyCertificate / CitesPermit / Document 三类到期物，60/30/7 三档提醒持证方（站内信 + 三语邮件）、7 天内与已过期汇总给内部合规角色、已过期自动置 `EXPIRED`；靠 `Notification.payload.dedupeKey` 保证同档只发一次，重跑幂等。接口：`GET /compliance/certificates/expiring`（内部）/`/mine`（持证方）/`POST /compliance/certificates/scan`（管理员手动触发） | 已交付 |
 | R1-6 | **争议处理** ✅ 2026-07-22 | `trading/dispute.service.ts`：签收后争议期内发起（订单转 DISPUTED、托管冻结）、补充证据、平台三种裁决（驳回放款 / 全额退款 / 部分退款按原佣金比例分账）；订单页争议区 + 管理后台裁决面板；状态机补 `RESOLVED→COMPLETED` | 已交付（文案欠账已清） |
-| R1-7 | GDPR 补齐 | 数据导出/删除请求工作流 | 隐私页与 Cookie 横幅已上线，用户行权流程未做 |
+| R1-7 | **GDPR 行权工作流** ✅ 2026-07-22 | `compliance/gdpr.service.ts` + `DataSubjectRequest` 表：本人提请 EXPORT（Art.15）/ DELETE（Art.17）→ 管理员审批 → EXPORT 打 JSON 包进私有存储、凭一次性令牌 72h 内**仅本人**可取；DELETE 走**匿名化**（换邮箱盲索引、清密码/2FA/会话/OAuth/通知、消息正文打码、行为事件脱钩、解除成员与角色），订单/发票/账本/审计按 Art.17(3)(b)(e) 保留；组织无其他成员且有在途订单时拒绝注销 | 已交付 |
 | R1-8 | **真实密钥联调** | Stripe（`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`/`STRIPE_WEBHOOK_SECRET`）与 OVH S3（`S3_*`） | 代码已就绪并按占位符自动降级；**等用户提供密钥后端到端验证** |
 
 ### R1.5 真实贸易补全（2026-07-15 新增，源自 HZB 真实案例复盘）
@@ -162,7 +162,7 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 |---|---|---|---|
 | R1.6-1 | **订单详情/履约跟踪页** ✅ 2026-07-21 | `GET /orders/:code` 聚合接口 + `/[locale]/orders/[code]` 页：明细、托管与支付、单证齐备度、双边报关、航段、冷链 SVG 曲线、状态时间线；工作台订单号可点入 | 已交付（R1.5-8 欠账已清） |
 | R1.6-2 | **供应商自助录入** ✅ 2026-07-21 | `components/supplier-profile.tsx`：联系人/资质证书/CITES 配额自助增删（自助登记的证书为 PENDING 待平台核验）；产品 `attributes` 支持 PATCH 更新 | 已交付 |
-| R1.6-3 | 单证上传与预览 ✅ 2026-07-21（脱敏渲染待办） | 原件上传/预览随 R1-3 落地；**脱敏副本仍是元数据级，像素级遮盖渲染未做** | 部分交付 |
+| R1.6-3 | **单证上传与像素级脱敏** ✅ 2026-07-22 | 原件上传/预览随 R1-3 落地；`fulfillment/document-redactor.ts` 做真打码：PDF 走 pdf-lib 盖实心黑块 + 全页水印，位图走 sharp 合成黑块并统一重编码 PNG（顺带抹 EXIF）；遮盖坐标以**原件左上角**为原点（PDF 用 pt、位图用 px）；收件方经 `GET /documents/received/:trackingCode/file` 取副本，原件通道对其永不开放。原件未上传时降级为元数据副本（`rendered:false`），不阻断早期流程 | 已交付 |
 | R1.6-4 | 订单时间线 ✅ 2026-07-21 | 审计日志驱动的状态流转时间线，已在订单详情页 | 已交付 |
 
 ### R2 体验完善 ✅（2026-07-11/12 全部交付）
@@ -176,11 +176,11 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 
 ### 未完成功能总览（2026-07-21 代码级核实，按影响排序）
 
-> 核实方式：grep 控制器与 @Cron，而非依赖旧文档表述。以下为**实际不存在**的能力。
+> 核实方式：grep 控制器与 @Cron，而非依赖旧文档表述。以下为**实际不存在**的能力。（B 组已于 2026-07-22 清零）
 
 **A. 上线阻断**：✅ R1-4 SMTP 与 R1-6 争议已交付（2026-07-22）；**仅剩 R1-8 真实密钥联调**（Stripe / S3 / SMTP 凭据由用户提供后验证）
 
-**B. 合规与运营**：R1-5 证书到期扫描 cron ｜ R1-7 GDPR 行权工作流 ｜ R1.6-3 脱敏副本**像素级遮盖**（当前发出的 PDF 并未真正打码，仅元数据标记）
+**B. 合规与运营**：✅ 全部交付（2026-07-22）——R1-5 证照到期扫描 cron ｜ R1-7 GDPR 行权工作流 ｜ R1.6-3 脱敏副本像素级遮盖。冒烟 `scripts/smoke-compliance.ts`（34 项）
 
 **C. 真实贸易能力**：✅ R1.5 全部交付（分期付款 / 框架合同 / CITES 多物种 / 样品单，2026-07-22）
 

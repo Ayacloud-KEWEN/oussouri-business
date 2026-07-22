@@ -181,7 +181,12 @@
       "ORDER_PAYMENT_LINK": "Payment link ready for order {orderCode}",
       "TEMP_BREACH": "Cold-chain temperature alert on {orderCode} (breach #{breachCount})",
       "DOC_RECEIVED": "Document {docType} received for {trackingCode}",
-      "ACCESS_ESCALATION": "Sensitive data access escalation requested"
+      "ACCESS_ESCALATION": "Sensitive data access escalation requested",
+      "CERT_EXPIRING": "{certType} certificate {certNo} expires on {expiryDate} ({daysToExpiry} days left)",
+      "CERT_EXPIRY_DIGEST": "Certificate expiry digest: {expiredCount} expired, {urgentCount} expiring within 7 days",
+      "GDPR_REQUEST_SUBMITTED": "New data subject request ({requestType}) awaiting review",
+      "GDPR_REQUEST_REJECTED": "Your data request ({requestType}) was not approved",
+      "GDPR_EXPORT_READY": "Your data export is ready — download it before {expiresAt}"
     }
   },
   "buyer": {
@@ -237,7 +242,7 @@
       "PENDING": "Pending",
       "ACTIVE": "Active",
       "SUSPENDED": "Suspended",
-      "INACTIVE": "Rejected/Inactive"
+      "INACTIVE": "Inactive"
     },
     "registeredAt": "Registered",
     "totalCount": "{total} parties",

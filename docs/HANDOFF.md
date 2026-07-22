@@ -7,9 +7,9 @@
 
 ## 1. 一句话现状
 
-**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：**P1 交易闭环 + P2 五批 + R2 全量 + R1 主体 + R1.5 全部 + R1.6 全部**已交付，部署在用户 OVH VPS（CloudPanel）。
+**Oussouri Caviar HUB**（居间控制型中欧鱼子酱 B2B 平台，oussouri.fr/.com）：**P1 交易闭环 + P2 五批 + R2 全量 + R1 主体 + R1.5 全部 + R1.6 全部 + B 组合规运营**已交付，部署在用户 OVH VPS（CloudPanel）。
 
-**能力现状**：注册审核 → 上架/溯源/库存 → 下单（直采/RFQ/居间代下单/样品单/框架合同挂靠）→ **分期付款进托管** → 接单备货 → 单证齐备度守卫 → 发货（**尾款未清拦截**）→ 双边报关 → 冷链温度 → 签收 → **争议裁决**或放款分账。三语（中/英/法）+ 身份防火墙 + 审计全覆盖。**三家真实供应商与两笔真实交易已入库**。
+**能力现状**：注册审核 → 上架/溯源/库存 → 下单（直采/RFQ/居间代下单/样品单/框架合同挂靠）→ **分期付款进托管** → 接单备货 → 单证齐备度守卫 → 发货（**尾款未清拦截**）→ 双边报关 → 冷链温度 → 签收 → **争议裁决**或放款分账。横向还有**证照到期扫描 / GDPR 行权 / 单证像素级脱敏**三项合规能力。三语（中/英/法）+ 身份防火墙 + 审计全覆盖。**三家真实供应商与两笔真实交易已入库**。
 
 **唯一阻断上线的事**：Stripe / SMTP / S3 三组真实密钥未配（代码已就绪并按占位符自动降级，见 §5）。
 
@@ -41,9 +41,9 @@ pnpm --filter @oussouri/web dev   # Web :3000
 
 ```powershell
 pnpm --filter @oussouri/api typecheck ; pnpm --filter @oussouri/web typecheck
-pnpm --filter @oussouri/api test          # 36 单测
+pnpm --filter @oussouri/api test          # 44 单测
 # 起 API 后按改动范围重跑冒烟（apps/api/scripts/）：
-# smoke.ts(29) smoke-p2.ts(13) smoke-fulfillment.ts(17) smoke-p2x.ts(17)
+# smoke.ts(29) smoke-p2.ts(13) smoke-fulfillment.ts(17) smoke-p2x.ts(17) smoke-compliance.ts(34)
 pnpm --filter @oussouri/web build
 # 涉静态资源/Docker 的改动：构建生产镜像 docker run 验证（standalone ≠ dev server）
 ```
@@ -64,7 +64,7 @@ pnpm --filter @oussouri/web build
 
 ### 5.2 其余未做项（按优先级，详见 development-guide §9「未完成功能总览」）
 
-- **B 合规运营**：R1-5 证书到期扫描 cron（仿 `matchmaking.service` 的 @Cron；`CitesPermit` 现已有 `daysToExpiry`，库中有现成的过期证与 PENDING 证可验证）｜R1-7 GDPR 数据导出/删除工作流｜R1.6-3 脱敏副本**像素级 PDF 打码**（当前仅元数据标记）
+- ~~**B 合规运营**~~ 已全部交付（2026-07-22，见 §5.3 表末行）
 - **D P3 大功能**（表结构多已备、零实现）：拍卖｜期货预售｜市场情报引擎｜AI Copilot（RAG/pgvector）｜经营分析看板｜撮合模型化
 - **E 工程债**：Playwright E2E｜恢复 CI｜并发预留测试｜账本借贷平衡不变量测试｜镜像瘦身｜Redis 限流｜覆盖率门禁
 
@@ -73,11 +73,15 @@ pnpm --filter @oussouri/web build
 | 批次 | 关键落点 |
 |---|---|
 | R2（07-11/12） | 忘记密码 + httpOnly cookie 会话 + TOTP 2FA｜WS 通知｜全文搜索｜DeepSeek 机翻管道｜可见性策略拦截器｜后台补齐 |
+| 法国伙伴档案（07-22） | `seed-french-partners.ts`（源 `HZB/法国经销商.docx`，幂等）：**只建主体档案不建交易** —— 补全既有 JINGLIN 买家的 VAT/RCS/注册地址，新建 WELLHOPE / ZHOU LIHANG / CHEN STEINKERQUE / 客户001 四份档案（状态 `INACTIVE`，不占 PENDING 入驻队列）。四笔历史零售单与发票只写进 `riskNotes`——那是**经销商下游业务**，平台 TradeOrder 的佣金/托管/报关/CITES 全不适用，硬导会污染 GMV 统计。**两个 IBAN 刻意不入库**（平台收款走 Stripe Connect，无银行账号字段） |
 | 真实数据（07-15/20/21） | 三家真实供应商 seed（`seed-hzb-case` / `seed-tuopai-supplier` / `seed-liangmei-supplier`，均幂等）｜`Product.attributes` 承载营养/工艺/品鉴｜外贸学院 `/help/academy`（内容在 `content/academy.ts`）｜首页数据达阈值切实时（`STATS_LIVE_THRESHOLD`）+ 洞察后台可配 |
 | 上手引导（07-21） | `components/getting-started.tsx` 按真实数据判进度；文案在 `messages/*.json` 的 `guide`/`help` 段，改措辞不必动代码 |
 | 履约可视化（07-21） | `GET /orders/:code` 聚合 + `/[locale]/orders/[code]` 页（单证齐备度/双边报关/航段/冷链 SVG/时间线）｜`StoragePort`（本地+S3 手写 SigV4）｜单证原件私有通道（买家取不到原件，payload 只给 `hasFile`）｜Stripe Elements + Connect |
 | R1.5 真实贸易（07-22） | `PaymentMilestone` 分期（checkout 每次只收最早未付一期，`PAYABLE_STATES` 控制可付状态）｜`TradeContract` 框架合同（总量上限含 ±tolerance，条款模板下发）｜`CitesPermitLine` 一证多物种（扣减须带 `speciesCode`）｜`OrderType.SAMPLE`（免 MOQ，≤5kg） |
 | A 组（07-22） | `dispute.service.ts` 争议全流程（三种裁决的资金分配见代码注释）｜`smtp.adapter.ts` 零依赖手写 SMTP |
+| B 组合规（07-22） | 新增 `modules/compliance/`：`cert-expiry.service.ts` 每日 03:00 扫三类证照（60/30/7 分档 + 过期置 EXPIRED，用 `Notification.payload.dedupeKey` 去重保幂等）｜`gdpr.service.ts` DSR 工作流（EXPORT 打包进私有存储凭一次性令牌 72h 取；DELETE 是**匿名化**不是物理删，交易/账本/审计按 Art.17(3) 保留）｜`fulfillment/document-redactor.ts` 像素级打码（PDF→pdf-lib 黑块+水印，位图→sharp；坐标**左上角原点**）。冒烟 `scripts/smoke-compliance.ts`（34 项） |
+
+> **法国伙伴档案的两个待补口**（运营侧补录，不是代码欠账）：客户 001 的公司全称至今只有「客户编码 001」；WELLHOPE 的法定代表人与成立日期空缺。三个下游零售产品（1000g / Hybrid 30g / esturgeon 30g）若要上架，走正常供应商产品流程由 codegen 发编码，**不要用文档建议的 `P-CAV-*` 命名**（平台编码规则是 `PRD-{seq:6}`）。
 
 > **新库/新环境必做**：`npx tsx prisma/seed/index.ts`（含新增的 `CONTRACT` 编号规则与 `RESOLVED→COMPLETED` 状态转换）+ `npx tsx scripts/migrate-cites-lines.ts`（CITES 历史数据合并，幂等）。
 

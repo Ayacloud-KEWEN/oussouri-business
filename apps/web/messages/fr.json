@@ -181,7 +181,12 @@
       "ORDER_PAYMENT_LINK": "Lien de paiement prêt pour la commande {orderCode}",
       "TEMP_BREACH": "Alerte température chaîne du froid sur {orderCode} (n°{breachCount})",
       "DOC_RECEIVED": "Document {docType} reçu pour {trackingCode}",
-      "ACCESS_ESCALATION": "Demande d'accès aux données sensibles"
+      "ACCESS_ESCALATION": "Demande d'accès aux données sensibles",
+      "CERT_EXPIRING": "Le certificat {certType} {certNo} expire le {expiryDate} ({daysToExpiry} jours restants)",
+      "CERT_EXPIRY_DIGEST": "Récapitulatif d'expiration : {expiredCount} expiré(s), {urgentCount} sous 7 jours",
+      "GDPR_REQUEST_SUBMITTED": "Nouvelle demande de personne concernée ({requestType}) à traiter",
+      "GDPR_REQUEST_REJECTED": "Votre demande de données ({requestType}) n'a pas été approuvée",
+      "GDPR_EXPORT_READY": "Votre export de données est prêt — à télécharger avant le {expiresAt}"
     }
   },
   "buyer": {
@@ -237,7 +242,7 @@
       "PENDING": "En attente",
       "ACTIVE": "Actif",
       "SUSPENDED": "Suspendu",
-      "INACTIVE": "Refusé/Inactif"
+      "INACTIVE": "Inactif"
     },
     "registeredAt": "Inscrit le",
     "totalCount": "{total} acteurs",

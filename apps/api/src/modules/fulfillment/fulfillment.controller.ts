@@ -76,6 +76,7 @@ class DeductDto {
   @IsOptional() @IsString() speciesCode?: string;
 }
 
+/** 坐标以原件左上角为原点：PDF 用 pt，位图用 px（详见 document-redactor.ts） */
 class MaskRegionDto {
   @IsNumber() page!: number;
   @IsNumber() x!: number;
@@ -164,6 +165,16 @@ export class FulfillmentController {
   @Get("documents/received")
   received(@CurrentUser() user: JwtPayload) {
     return this.fulfillment.listReceivedCopies(user);
+  }
+
+  /** 收件方下载脱敏副本（R1.6-3 渲染产物；原件通道不对收件方开放） */
+  @Get("documents/received/:trackingCode/file")
+  async receivedFile(@Param("trackingCode") trackingCode: string, @CurrentUser() user: JwtPayload, @Res() res: Response) {
+    const obj = await this.fulfillment.downloadMaskedCopy(trackingCode, user);
+    res.setHeader("Content-Type", obj.contentType);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(obj.filename)}"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.end(obj.body);
   }
 
   // 清关
