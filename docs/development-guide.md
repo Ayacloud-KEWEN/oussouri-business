@@ -132,10 +132,11 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 | R1-1 | **Stripe Elements 收银台** ✅ 2026-07-21 | `components/stripe-checkout.tsx`：有 `STRIPE_PUBLISHABLE_KEY` 走真实 Elements 卡支付，无则回退模拟支付并标注演示模式；`GET /payments/config` 供前端判定 | 已交付，**待配真实密钥端到端联调** |
 | R1-2 | **供应商 Stripe Connect 入驻** ✅ 2026-07-21 | StripePort 加 Connect 三方法（建号/入驻链接/状态）；`POST /settlement/connect/onboarding`、`GET /settlement/connect/status`；供应商工作台入驻卡片；**未入驻时真实网关下放款被拦截**（不再打占位账户） | 已交付，**待配真实密钥端到端联调** |
 | R1-3 | **S3 文件真实上传** ✅ 2026-07-21 | `StoragePort` + 本地磁盘/S3 双适配器（手写 SigV4 零 SDK）；单证原件私有通道 `POST/GET /documents/:id/file`（逐次鉴权+审计，买家不可取原件）；产品图改走 Port | 已交付，**待配 S3 密钥切换后端** |
-| R1-4 | **邮件通道（SMTP）** | 审核/支付链接/告警邮件；SPF/DKIM/DMARC | 仅站内信（MailPort 日志适配器已备） |
-| R1-5 | 证书到期扫描任务 | CITES/SC 临期提醒 + 过期自动下架 | 表/索引就绪，缺 cron |
-| R1-6 | 争议处理 UI | 买家发起 + 管理员裁决界面 | 后端与资金冻结逻辑就绪 |
-| R1-7 | GDPR 补齐 | 数据导出/删除请求工作流 | 隐私页与 Cookie 横幅已上线 |
+| R1-4 | **邮件通道（SMTP）** 🚨 上线阻断 | 审核/支付链接/告警邮件；SPF/DKIM/DMARC | **仅 `LogMailAdapter`（打日志不外发）→ 用户点「忘记密码」永远收不到邮件，重置链接只在服务器日志** |
+| R1-5 | 证书到期扫描任务 | CITES/SC 临期提醒 + 过期自动下架 | 表/索引就绪，**全项目仅 matchmaking 一个 @Cron**，此任务未写。库中已有过期证（华芝宝 2025 CITES）与待办证（良美 PENDING）可作验证素材 |
+| R1-6 | **争议处理** 🚨 上线阻断 | 买家发起 + 管理员裁决 | **实为空壳**：`Dispute` 表、`disputeUntil`（签收后 48h）、放款前的未决争议检查都在，但**没有任何创建/裁决接口，更无 UI —— 买家点不了「发起争议」**。而引导文案、帮助 FAQ、订单页托管说明均已向用户承诺此能力（第二笔文案欠账，同 R1.6-1 性质） |
+| R1-7 | GDPR 补齐 | 数据导出/删除请求工作流 | 隐私页与 Cookie 横幅已上线，用户行权流程未做 |
+| R1-8 | **真实密钥联调** | Stripe（`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`/`STRIPE_WEBHOOK_SECRET`）与 OVH S3（`S3_*`） | 代码已就绪并按占位符自动降级；**等用户提供密钥后端到端验证** |
 
 ### R1.5 真实贸易补全（2026-07-15 新增，源自 HZB 真实案例复盘）
 
@@ -172,6 +173,20 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 ### R3 P3 大功能（AI 完全体；表结构与状态机多数已备）
 
 拍卖（英式/荷兰式/密封 + 保证金 + WS 竞价 + 反狙击）｜期货预售（锁价 + 保证金 + T-30 交割提醒）｜市场情报引擎（UN Comtrade/Eurostat 接入 + AI 周报，替换首页演示行情）｜各角色 AI Copilot（DeepSeek + RAG/pgvector）｜经营分析看板（GMV/漏斗/Broker 业绩）｜撮合模型化（embedding 相似度 + 转化率，替换规则引擎）
+
+### 未完成功能总览（2026-07-21 代码级核实，按影响排序）
+
+> 核实方式：grep 控制器与 @Cron，而非依赖旧文档表述。以下为**实际不存在**的能力。
+
+**A. 上线阻断（真实用户会卡死）**：R1-4 SMTP ｜ R1-6 争议发起与裁决 ｜ R1-8 Stripe/S3 真实密钥联调
+
+**B. 合规与运营**：R1-5 证书到期扫描 cron ｜ R1-7 GDPR 行权工作流 ｜ R1.6-3 脱敏副本**像素级遮盖**（当前发出的 PDF 并未真正打码，仅元数据标记）
+
+**C. 真实贸易能力**（源自三家真实供应商复盘）：R1.5-1 分期付款 ｜ R1.5-2 框架合同+分批补充协议 ｜ R1.5-3 CITES 一证多物种行 ｜ R1.5-4 样品单
+
+**D. P3 大功能**（表结构大多已备、**零实现**）：拍卖 ｜ 期货预售 ｜ 市场情报引擎 ｜ AI Copilot（RAG/pgvector，`KnowledgeDocument`/`ProductEmbedding` 表已建）｜ 经营分析看板 ｜ 撮合模型化
+
+**E. 工程债**：见下方 R4
 
 ### R4 工程债
 

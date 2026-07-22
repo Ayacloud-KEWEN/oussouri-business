@@ -101,6 +101,14 @@ pnpm --filter @oussouri/web build
 | R1-6 争议 UI | 后端 Dispute 模型 + 资金冻结逻辑已在；缺买家发起与管理员裁决页面 |
 | R1-7 GDPR 补齐 | 隐私页/Cookie 横幅已上线；剩数据导出/删除请求工作流 |
 
+## 5.5 已知缺口（2026-07-21 代码级核实，勿轻信旧文档表述）
+
+🚨 **两处「前端文案已承诺、后端功能不存在」**，接手后请优先清理：
+1. **争议功能是空壳**：`Dispute` 表 + `disputeUntil`（签收后 48h）+ 放款前未决争议检查都在，但**无创建/裁决接口、无 UI**，买家发起不了争议。而 `messages/*.json` 的 `guide.buyer.s5`、`help.faqExtra`、`orderDetail.escrowNote` 都写了"可在争议期内发起争议"。
+2. **邮件发不出去**：只有 `LogMailAdapter`（打日志），无 SMTP 适配器 → 忘记密码的重置链接只进服务器日志，用户收不到。
+
+其余未做项见 development-guide §9「未完成功能总览」（A 上线阻断 / B 合规运营 / C 真实贸易能力 / D P3 大功能 / E 工程债）。另注意：全项目只有 `matchmaking.service` 一个 `@Cron`，证书到期扫描尚未编写。
+
 ## 6. 高频陷阱（新会话最容易踩的）
 
 1. **身份防火墙是底线**：任何新接口输出前过一遍"对手方只能见平台代码"；用户自由文本过 `PiiFilterService`；发往 LLM 的内容必须先脱敏。
