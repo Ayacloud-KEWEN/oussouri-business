@@ -7,6 +7,7 @@ import { CommissionController } from "./commission.controller";
 import { ContractService } from "./contract.service";
 import { MilestoneService } from "./milestone.service";
 import { DisputeService } from "./dispute.service";
+import { ReservationSweeperService } from "./reservation-sweeper.service";
 import { InventoryModule } from "../inventory/inventory.module";
 import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { CommunicationModule } from "../communication/communication.module";
@@ -14,7 +15,7 @@ import { CommunicationModule } from "../communication/communication.module";
 @Module({
   imports: [InventoryModule, FulfillmentModule, CommunicationModule],
   controllers: [TradingController, RfqController, CommissionController],
-  providers: [TradingService, RfqService, ContractService, MilestoneService, DisputeService],
+  providers: [TradingService, RfqService, ContractService, MilestoneService, DisputeService, ReservationSweeperService],
   // MilestoneService 供 SettlementModule 归集分期付款
   exports: [TradingService, MilestoneService],
 })

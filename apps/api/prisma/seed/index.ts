@@ -55,7 +55,8 @@ async function seedOrderStateMachine(): Promise<void> {
   const transitions: { from: string; to: string; roles: string[]; emits?: string }[] = [
     { from: "DRAFT", to: "PLACED", roles: ["BUYER"], emits: "OrderPlaced" },
     { from: "PLACED", to: "PAID_ESCROW", roles: ["SYSTEM"], emits: "OrderPaid" },
-    { from: "PLACED", to: "CANCELLED", roles: ["BUYER", "ADMIN"], emits: "OrderCancelled" },
+    // SYSTEM：锁货 TTL 到期后由 ReservationSweeperService 自动取消，释放被占住的库存
+    { from: "PLACED", to: "CANCELLED", roles: ["BUYER", "ADMIN", "SYSTEM"], emits: "OrderCancelled" },
     { from: "PAID_ESCROW", to: "CONFIRMED", roles: ["SUPPLIER"], emits: "OrderConfirmed" },
     { from: "CONFIRMED", to: "PREPARING", roles: ["SUPPLIER"] },
     { from: "PREPARING", to: "SHIPPED", roles: ["SUPPLIER"], emits: "OrderShipped" },

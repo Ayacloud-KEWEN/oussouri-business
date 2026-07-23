@@ -234,8 +234,10 @@ export async function purgeOrgs(prisma: PrismaClient, orgIds: string[]): Promise
       note("futures_contracts", (await tx.futuresContract.deleteMany({ where: { id: inIds(futures.map((f) => f.id)) } })).count);
 
       // ---- 库存与溯源 ----
-      note("reservations", (await tx.reservation.deleteMany({ where: { lotId: inIds(lotIds) } })).count);
-      note("inventory_transactions", (await tx.inventoryTransaction.deleteMany({ where: { lotId: inIds(lotIds) } })).count);
+      // 按 lotId 与 refId 两头删：跨组织订单（存活买家 × 被清供应商）的预留只有前者能覆盖，
+      // 漏掉就会留下指向已删批次的孤儿预留，把回收任务卡住。
+      note("reservations", (await tx.reservation.deleteMany({ where: { OR: [{ lotId: inIds(lotIds) }, { refId: inIds(orderIds) }] } })).count);
+      note("inventory_transactions", (await tx.inventoryTransaction.deleteMany({ where: { OR: [{ lotId: inIds(lotIds) }, { refId: inIds(orderIds) }] } })).count);
       note("inventory_lots", (await tx.inventoryLot.deleteMany({ where: { id: inIds(lotIds) } })).count);
       note("processing_steps", (await tx.processingStep.deleteMany({ where: { processingBatchId: inIds(procBatchIds) } })).count);
       note("processing_batches", (await tx.processingBatch.deleteMany({ where: { id: inIds(procBatchIds) } })).count);

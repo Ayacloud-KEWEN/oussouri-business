@@ -190,7 +190,15 @@ npx tsx scripts/smoke-p2x.ts              # P2.3-2.5 17 项（脱敏发单、溯
 
 ### R4 工程债
 
-并发预留测试（行锁 + CHECK 验证）｜账本借贷平衡不变量测试｜Playwright 浏览器 E2E｜恢复 CI（工作流在 git 历史 733e451 前）｜Redis 分布式限流｜覆盖率门禁（核心域 ≥85%，Step 2 NFR）
+并发预留测试（行锁 + CHECK 验证）｜Playwright 浏览器 E2E｜恢复 CI（工作流在 git 历史 733e451 前）｜Redis 分布式限流｜覆盖率门禁（核心域 ≥85%，Step 2 NFR）
+
+> ✅ 2026-07-23 已完成：**账本借贷平衡不变量**。四条不变量在 `settlement/ledger-invariants.ts`（纯函数，可单测）：
+> 每笔日记账借贷相等｜不混币种（混了之后"看起来平"可能只是巧合）｜金额恒正（负数记账能绕开借贷校验）｜托管不透支（放款多于收款是最贵的一类 bug）。
+> 12 条单测**照抄生产金额公式**而非手写平账数字，改错分账算法会直接红；`scripts/check-ledger.ts` 对整库体检，退出码非 0 便于将来挂 CI。
+>
+> ✅ 同日：**修掉库存预留永久泄漏**（现有闭环的硬伤，非新功能）。详见 `trading/reservation-sweeper.service.ts` 注释。
+> 顺带发现并修了 `releaseInTx` 的健壮性缺陷 —— 原用 `update`，撞上指向已删批次的孤儿预留会抛 P2025 中断整个事务，
+> 一条坏数据就让所有人的库存放不出来；改 `updateMany` 后缺行是 no-op，预留仍标记 RELEASED 以免永远卡在 HELD。
 
 > ✅ 2026-07-23 已完成：**API 镜像瘦身** 1.36GB → 755MB。做法见 `apps/api/Dockerfile` 注释。
 > 剩下的 387MB 里 Prisma 一家占 240MB：`@prisma/client` 98MB 是运行时刚需；`prisma` CLI + engines + effect + typescript 约 143MB 只为「容器启动时自动跑 migration」这一条。

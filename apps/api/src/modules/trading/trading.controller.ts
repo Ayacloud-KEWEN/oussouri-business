@@ -8,6 +8,7 @@ import { TradingService } from "./trading.service";
 import { ContractService } from "./contract.service";
 import { MilestoneService } from "./milestone.service";
 import { DisputeService, DISPUTE_REASONS } from "./dispute.service";
+import { ReservationSweeperService } from "./reservation-sweeper.service";
 import { CurrentUser, Roles } from "../iam/roles.guard";
 import type { JwtPayload } from "../iam/auth.types";
 
@@ -87,6 +88,7 @@ export class TradingController {
     private readonly contracts: ContractService,
     private readonly milestoneService: MilestoneService,
     private readonly disputes: DisputeService,
+    private readonly sweeper: ReservationSweeperService,
   ) {}
 
   // 购物车
@@ -193,5 +195,11 @@ export class TradingController {
   @Roles("BUYER") @Post("buyer/orders/:code/confirm-delivery")
   confirmDelivery(@Param("code") code: string, @CurrentUser() user: JwtPayload) {
     return this.trading.transition(code, "DELIVERED", user);
+  }
+
+  /** 手动触发过期预留回收（cron 每 10 分钟自动跑；此处供排障与冒烟） */
+  @Roles("ADMIN") @Post("admin/reservations/sweep")
+  sweepReservations(@CurrentUser() user: JwtPayload) {
+    return this.sweeper.sweep(user.sub);
   }
 }

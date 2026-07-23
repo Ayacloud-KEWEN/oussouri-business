@@ -43,7 +43,8 @@ pnpm --filter @oussouri/web dev   # Web :3000
 pnpm --filter @oussouri/api typecheck ; pnpm --filter @oussouri/web typecheck
 pnpm --filter @oussouri/api test          # 44 单测
 # 起 API 后按改动范围重跑冒烟（apps/api/scripts/）：
-# smoke.ts(29) smoke-p2.ts(13) smoke-fulfillment.ts(17) smoke-p2x.ts(17) smoke-compliance.ts(34)
+# smoke.ts(29) smoke-p2.ts(13) smoke-fulfillment.ts(17) smoke-p2x.ts(17) smoke-compliance.ts(34) smoke-reservations.ts(17)
+npx tsx scripts/check-ledger.ts   # 改过资金流必跑：对整库校验借贷平衡/托管不透支
 # 冒烟全绿会自动回收本次数据；有失败项则保留现场供排查，事后用 scripts/clean-test-data.ts 清
 pnpm --filter @oussouri/web build
 # 涉静态资源/Docker 的改动：构建生产镜像 docker run 验证（standalone ≠ dev server）
@@ -80,6 +81,7 @@ pnpm --filter @oussouri/web build
 | 履约可视化（07-21） | `GET /orders/:code` 聚合 + `/[locale]/orders/[code]` 页（单证齐备度/双边报关/航段/冷链 SVG/时间线）｜`StoragePort`（本地+S3 手写 SigV4）｜单证原件私有通道（买家取不到原件，payload 只给 `hasFile`）｜Stripe Elements + Connect |
 | R1.5 真实贸易（07-22） | `PaymentMilestone` 分期（checkout 每次只收最早未付一期，`PAYABLE_STATES` 控制可付状态）｜`TradeContract` 框架合同（总量上限含 ±tolerance，条款模板下发）｜`CitesPermitLine` 一证多物种（扣减须带 `speciesCode`）｜`OrderType.SAMPLE`（免 MOQ，≤5kg） |
 | A 组（07-22） | `dispute.service.ts` 争议全流程（三种裁决的资金分配见代码注释）｜`smtp.adapter.ts` 零依赖手写 SMTP |
+| 库存与资金底线（07-23） | **修掉预留永久泄漏**：三条下单路径都给预留设了 24h TTL，但此前**没有任何东西执行它** —— 买家不付款也不取消，货就永久锁死（HANDOFF 旧第 11 条「demo SKU 库存被测试耗尽」多半是这个）。`trading/reservation-sweeper.service.ts` 每 10 分钟扫，PLACED 订单走状态机转 CANCELLED（由既有副作用释放预留），已付款/支付在途（PENDING 支付 24h 宽限）一律不碰。状态机 seed 给 `PLACED→CANCELLED` 加了 SYSTEM 角色 ｜ **账本不变量** `settlement/ledger-invariants.ts`：日记账借贷相等、不混币种、金额恒正、托管不透支；12 条单测照抄生产公式（改错分账算法会红），`scripts/check-ledger.ts` 对整库体检 |
 | 工程卫生（07-23） | **镜像瘦身** 1.36GB→755MB：依赖只装 api 分支（不再顺带装 web 那套 Next/React）+ `pnpm deploy --prod` 产自包含目录；`tsx` 移入 dependencies 以保住容器内跑 seed 脚本的能力。**顺带堵了个泄露**：`apps/api/uploads` 22MB 曾被烤进生产镜像（单证原件 + HZB 合同 + GDPR 导出包），已加进 `.dockerignore` 并用 package.json `files` 白名单双重兜底 ｜ **测试数据治理**：`scripts/clean-test-data.ts`（默认预览，`--yes` 才删）+ 五套 smoke 收尾自动回收；`smoke.ts` 过去直接借用真实公司名，每跑一次就多一对与华芝宝/JINGLIN 同名的影子主体（本地积到 88 家主体），现已改为带 run 时间戳 |
 | B 组合规（07-22） | 新增 `modules/compliance/`：`cert-expiry.service.ts` 每日 03:00 扫三类证照（60/30/7 分档 + 过期置 EXPIRED，用 `Notification.payload.dedupeKey` 去重保幂等）｜`gdpr.service.ts` DSR 工作流（EXPORT 打包进私有存储凭一次性令牌 72h 取；DELETE 是**匿名化**不是物理删，交易/账本/审计按 Art.17(3) 保留）｜`fulfillment/document-redactor.ts` 像素级打码（PDF→pdf-lib 黑块+水印，位图→sharp；坐标**左上角原点**）。冒烟 `scripts/smoke-compliance.ts`（34 项） |
 
@@ -103,7 +105,8 @@ pnpm --filter @oussouri/web build
 8. **VPS 环境与仓库有本地差异**：`.env.production` 里 `API_PORT=3100`（容器内 API 监听 3100 而非 3001，宿主映射 127.0.0.1:3101→3100）；容器内跑脚本用 `-e DEMO_API_BASE=http://127.0.0.1:3100/v1`。
 9. 公共接口做登录差异化视图（如批发价）一律用 Guard 解析的 `@CurrentUser()` 判定，兼容 Bearer 与 httpOnly cookie；`launch.json` 的 api 配置跑 `node dist/main.js`，改 API 源码后须 `pnpm --filter @oussouri/api build` 再重启预览。
 10. **改资金流必须端到端验证**：分期付款曾因 checkout 只允许 `PLACED` 状态而导致尾款永远付不了 —— 单测与类型检查都发现不了，只有跑完整"下单→首期→发货拦截→尾款→放行"才暴露。
-11. **本地跑验证脚本前先确认库存**：demo SKU 的库存会被反复测试耗尽，报 `INVENTORY_INSUFFICIENT` 多半是这个原因，补一批库存即可（记得用完清理测试数据）。
+11. **报 `INVENTORY_INSUFFICIENT` 先看有没有过期预留没放出来**：~~demo SKU 库存被反复测试耗尽~~ 根因已于 2026-07-23 查明并修复 —— 是预留 TTL 从来没被执行，未付款订单把货永久锁死。现有 sweeper 每 10 分钟回收；急用可手动 `POST /admin/reservations/sweep`。若仍不足才是真的库存不够，补一批即可。
+12. **改资金流后跑 `scripts/check-ledger.ts`**：单测只保公式，这个脚本对整库查历史累积（早期写坏的账、并发重复入账、人工改库）。退出码非 0 即有问题。
 
 ## 7. 未合并的已知琐碎项
 

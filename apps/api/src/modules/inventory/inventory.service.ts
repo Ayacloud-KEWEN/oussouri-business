@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../kernel/prisma/prisma.service";
 import type { JwtPayload } from "../iam/auth.types";
@@ -9,6 +9,8 @@ import type { JwtPayload } from "../iam/auth.types";
  */
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async inbound(
@@ -104,10 +106,17 @@ export class InventoryService {
   async releaseInTx(tx: Prisma.TransactionClient, refType: string, refId: string, actorId: string): Promise<void> {
     const reservations = await tx.reservation.findMany({ where: { refType, refId, status: "HELD", deletedAt: null } });
     for (const r of reservations) {
-      await tx.inventoryLot.update({
+      // updateMany 而非 update：批次可能已不存在（历史清理留下的孤儿预留）。
+      // 用 update 会抛 P2025 中断整个事务 —— 对超时回收这种批量任务，
+      // 一条坏数据就会拖垮所有人的释放。批次没了本就不占库存，跳过即可，
+      // 预留仍照常标记 RELEASED，避免它永远卡在 HELD 被反复扫到。
+      const touched = await tx.inventoryLot.updateMany({
         where: { id: r.lotId },
         data: { qtyReserved: { decrement: r.qty }, version: { increment: 1 } },
       });
+      if (touched.count === 0) {
+        this.logger.warn(`预留 ${r.id} 指向的批次 ${r.lotId} 已不存在，仅标记释放`);
+      }
       await tx.reservation.update({ where: { id: r.id }, data: { status: "RELEASED", version: { increment: 1 } } });
       await tx.inventoryTransaction.create({
         data: { lotId: r.lotId, txType: "RELEASE", qty: r.qty.neg(), refType, refId, createdBy: actorId },
