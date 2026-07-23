@@ -13,6 +13,7 @@ import { createCipheriv, createHmac, randomBytes, scryptSync } from "node:crypto
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { finishSmoke } from "./lib/test-data";
+import { loadAppModule } from "./lib/load-src";
 
 const BASE = "http://localhost:3001/v1";
 const prisma = new PrismaClient();
@@ -187,7 +188,9 @@ async function main(): Promise<void> {
 
   // ---------- 4. 账本不变量 ----------
   console.log("\n4. 账本不变量（本轮资金流）");
-  const { checkLedgerInvariants } = await import("../src/modules/settlement/ledger-invariants");
+  const { checkLedgerInvariants } = await loadAppModule<{
+    checkLedgerInvariants: (rows: unknown[]) => unknown[];
+  }>("modules/settlement/ledger-invariants");
   const rows = await prisma.ledgerEntry.findMany({
     where: { orderId: { in: [orderRow.id, paidRow.id, pendingRow.id] } },
     select: { journalId: true, account: true, direction: true, amount: true, currency: true, orderId: true },

@@ -11,11 +11,16 @@
  * 退出码非 0 表示发现问题，便于将来挂进 CI。
  */
 import { PrismaClient } from "@prisma/client";
-import { checkLedgerInvariants } from "../src/modules/settlement/ledger-invariants";
+import { loadAppModule } from "./lib/load-src";
+import type { checkLedgerInvariants as CheckFn } from "../src/modules/settlement/ledger-invariants";
 
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
+  // 运行期解析 src/dist —— 生产镜像不含源码（见 load-src.ts）
+  const { checkLedgerInvariants } = await loadAppModule<{ checkLedgerInvariants: typeof CheckFn }>(
+    "modules/settlement/ledger-invariants",
+  );
   const rows = await prisma.ledgerEntry.findMany({
     select: { journalId: true, account: true, direction: true, amount: true, currency: true, orderId: true },
   });
